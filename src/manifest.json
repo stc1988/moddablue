@@ -1,0 +1,72 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/examples/manifest_piu.json",
+		"$(MODDABLE)/examples/manifest_commodetto.json",
+		"$(MODDABLE)/examples/manifest_net.json",
+		"$(MODDABLE)/modules/piu/MC/imageBuffer/manifest.json",
+		"$(MODDABLE)/modules/commodetto/jpeg/manifest.json",
+		"$(MODDABLE)/modules/data/text/decoder/manifest.json",
+		"$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"
+	],
+	"config": {
+		"mediaPlayerTrace": true
+	},
+	"modules": {
+		"*": [
+			"./main",
+			"./assets",
+			"./Logger",
+			"./model",
+			"./Controller",
+			"./View",
+			"./components/*",
+			"./services/MusicPlayerService",
+			"./services/ArtworkProvider",
+			"./services/ThemeColorExtractor"
+		]
+	},
+	"preload": ["./main"],
+	"resources": {
+		"*-mask": [
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16",
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-16",
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-18"
+		],
+		"*-alpha": ["./assets/masks/*"],
+		"*": ["$(MODDABLE)/modules/crypt/data/ca170"]
+	},
+	"platforms": {
+		"sim": {
+			"modules": {
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+			}
+		},
+		"mac": {
+			"modules": {
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+			}
+		},
+		"lin": {
+			"modules": {
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+			}
+		},
+		"win": {
+			"modules": {
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+			}
+		},
+		"esp32/*": {
+			"include": [
+				"$(MODDABLE)/modules/io/manifest.json",
+				"$(MODDABLE)/modules/io/ble/client/manifest.json",
+				"$(MODDABLE)/modules/io/ble/server/manifest.json"
+			],
+			"modules": {
+				"MusicPlayerServiceProvider": "./services/AMSMusicPlayerService",
+				"*": ["./services/ams/*"]
+			}
+		}
+	}
+}
