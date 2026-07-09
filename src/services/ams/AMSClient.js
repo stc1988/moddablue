@@ -6,11 +6,42 @@ import Timer from "timer";
 const GAP_SERVICE_UUID = "1800";
 const DEVICE_NAME_CHARACTERISTIC_UUID = "2a00";
 const AMS_SERVICE_UUID = "89d3502b-0f36-433a-8ef4-c502ad55f8dc";
-const REMOTE_COMMAND_CHARACTERISTIC_UUID = "9b3c81d8-57b1-4a8a-b8df-0e56f7ca51c2";
-const ENTITY_UPDATE_CHARACTERISTIC_UUID = "2f7cabce-808d-411f-9a0c-bb92ba96c102";
-const ENTITY_ATTRIBUTE_CHARACTERISTIC_UUID = "c6b2f38c-23ab-46d8-a6ab-a3a870bbd5d7";
+const GATT_CLIENT_MTU = 185;
 const ENTITY_ATTRIBUTE_READ_DELAY_MS = 50;
 const ENTITY_ATTRIBUTE_READ_AFTER_WRITE_MS = 50;
+
+const AMS_CHARACTERISTIC = Object.freeze({
+	REMOTE_COMMAND: Object.freeze({
+		field: "remoteCommand",
+		name: "remote command",
+		uuid: "9b3c81d8-57b1-4a8a-b8df-0e56f7ca51c2",
+		subscribe: true,
+	}),
+	ENTITY_UPDATE: Object.freeze({
+		field: "entityUpdate",
+		name: "entity update",
+		uuid: "2f7cabce-808d-411f-9a0c-bb92ba96c102",
+		subscribe: true,
+	}),
+	ENTITY_ATTRIBUTE: Object.freeze({
+		field: "entityAttribute",
+		name: "entity attribute",
+		uuid: "c6b2f38c-23ab-46d8-a6ab-a3a870bbd5d7",
+		subscribe: false,
+	}),
+});
+const REQUIRED_AMS_CHARACTERISTICS = Object.freeze([
+	AMS_CHARACTERISTIC.REMOTE_COMMAND,
+	AMS_CHARACTERISTIC.ENTITY_UPDATE,
+	AMS_CHARACTERISTIC.ENTITY_ATTRIBUTE,
+]);
+const SUBSCRIBED_AMS_CHARACTERISTICS = Object.freeze([
+	AMS_CHARACTERISTIC.REMOTE_COMMAND,
+	AMS_CHARACTERISTIC.ENTITY_UPDATE,
+]);
+const AMS_CHARACTERISTIC_UUIDS = Object.freeze(
+	REQUIRED_AMS_CHARACTERISTICS.map((characteristic) => characteristic.uuid),
+);
 
 const ENTITY_ID = Object.freeze({
 	PLAYER: 0,
@@ -56,9 +87,7 @@ const RemoteCommandID = Object.freeze({
 
 class AMSClient {
 	#gatt;
-	#remoteCommandCharacteristic;
-	#entityUpdateCharacteristic;
-	#entityAttributeCharacteristic;
+	#amsCharacteristics = {};
 	#supportedRemoteCommands = new Uint8Array();
 	#entityAttributeReads = [];
 	#readingEntityAttribute = false;
@@ -84,6 +113,7 @@ class AMSClient {
 		const client = this;
 		this.#gatt = new GATTClient({
 			address,
+			mtu: GATT_CLIENT_MTU,
 			security: {
 				bond: true,
 				ioCapabilities: "none",
@@ -105,10 +135,10 @@ class AMSClient {
 					const value = this.read();
 					if (!value) continue;
 
-					if (value.handle === client.#remoteCommandCharacteristic?.handle) {
+					if (value.handle === client.#amsCharacteristics.remoteCommand?.handle) {
 						client.#supportedRemoteCommands = new Uint8Array(value);
 						trace(`[ams/client] supported commands ${client.#supportedRemoteCommands.toHex()}\n`);
-					} else if (value.handle === client.#entityUpdateCharacteristic?.handle) {
+					} else if (value.handle === client.#amsCharacteristics.entityUpdate?.handle) {
 						client.#handleEntityUpdate(value);
 					}
 				}
@@ -123,10 +153,11 @@ class AMSClient {
 	}
 
 	remoteCommand(command) {
-		if (!this.#gatt || !this.#remoteCommandCharacteristic) return false;
+		const characteristic = this.#amsCharacteristics.remoteCommand;
+		if (!this.#gatt || !characteristic) return false;
 		if (!this.#supportedRemoteCommands.includes(command)) return false;
 
-		this.#gatt.write(this.#remoteCommandCharacteristic, Uint8Array.of(command), { response: false }, (error) => {
+		this.#gatt.write(characteristic, Uint8Array.of(command), { response: false }, (error) => {
 			if (error) trace(`[ams/client] remote command ${command} failed: ${error}\n`);
 			else trace(`[ams/client] remote command ${command} sent\n`);
 		});
@@ -179,64 +210,60 @@ class AMSClient {
 				return;
 			}
 
-			gatt.getCharacteristics(
-				services[0],
-				[REMOTE_COMMAND_CHARACTERISTIC_UUID, ENTITY_UPDATE_CHARACTERISTIC_UUID, ENTITY_ATTRIBUTE_CHARACTERISTIC_UUID],
-				(characteristicError, characteristics) => {
-					if (characteristicError) {
-						trace(`[ams/client] characteristic discovery failed: ${characteristicError}\n`);
-						this.delegate?.onAMSError?.(characteristicError);
-						return;
-					}
+			gatt.getCharacteristics(services[0], AMS_CHARACTERISTIC_UUIDS, (characteristicError, characteristics) => {
+				if (characteristicError) {
+					trace(`[ams/client] characteristic discovery failed: ${characteristicError}\n`);
+					this.delegate?.onAMSError?.(characteristicError);
+					return;
+				}
 
-					for (const characteristic of characteristics) {
-						if (sameUUID(characteristic.uuid, REMOTE_COMMAND_CHARACTERISTIC_UUID)) {
-							this.#remoteCommandCharacteristic = characteristic;
-						} else if (sameUUID(characteristic.uuid, ENTITY_UPDATE_CHARACTERISTIC_UUID)) {
-							this.#entityUpdateCharacteristic = characteristic;
-						} else if (sameUUID(characteristic.uuid, ENTITY_ATTRIBUTE_CHARACTERISTIC_UUID)) {
-							this.#entityAttributeCharacteristic = characteristic;
-						}
-					}
+				for (const characteristic of characteristics) {
+					const definition = amsCharacteristicDefinition(characteristic.uuid);
+					if (definition) this.#amsCharacteristics[definition.field] = characteristic;
+				}
 
-					this.#subscribeAMS(gatt);
-				},
-			);
+				this.#subscribeAMS(gatt);
+			});
 		});
 	}
 
 	#subscribeAMS(gatt) {
-		if (
-			!this.#remoteCommandCharacteristic ||
-			!this.#entityUpdateCharacteristic ||
-			!this.#entityAttributeCharacteristic
-		) {
-			trace("[ams/client] required AMS characteristics not found\n");
-			this.delegate?.onAMSError?.("required AMS characteristics not found");
+		const missing = this.#missingAMSCharacteristics();
+		if (missing) {
+			trace(`[ams/client] required AMS characteristics not found: ${missing}\n`);
+			this.delegate?.onAMSError?.(`required AMS characteristics not found: ${missing}`);
 			return;
 		}
 
-		gatt.subscribe(this.#remoteCommandCharacteristic, (remoteCommandError) => {
-			if (remoteCommandError) {
-				trace(`[ams/client] remote command subscribe failed: ${remoteCommandError}\n`);
-				this.delegate?.onAMSError?.(remoteCommandError);
+		this.#subscribeAMSCharacteristic(gatt, 0);
+	}
+
+	#missingAMSCharacteristics() {
+		for (const definition of REQUIRED_AMS_CHARACTERISTICS) {
+			if (!this.#amsCharacteristics[definition.field]) return definition.name;
+		}
+	}
+
+	#subscribeAMSCharacteristic(gatt, index) {
+		if (index >= SUBSCRIBED_AMS_CHARACTERISTICS.length) {
+			this.#requestEntityUpdates(gatt);
+			return;
+		}
+
+		const definition = SUBSCRIBED_AMS_CHARACTERISTICS[index];
+		gatt.subscribe(this.#amsCharacteristics[definition.field], (error) => {
+			if (error) {
+				trace(`[ams/client] ${definition.name} subscribe failed: ${error}\n`);
+				this.delegate?.onAMSError?.(error);
 				return;
 			}
-
-			gatt.subscribe(this.#entityUpdateCharacteristic, (entityUpdateError) => {
-				if (entityUpdateError) {
-					trace(`[ams/client] entity update subscribe failed: ${entityUpdateError}\n`);
-					this.delegate?.onAMSError?.(entityUpdateError);
-					return;
-				}
-				this.#requestEntityUpdates(gatt);
-			});
+			this.#subscribeAMSCharacteristic(gatt, index + 1);
 		});
 	}
 
 	#requestEntityUpdates(gatt) {
 		gatt.write(
-			this.#entityUpdateCharacteristic,
+			this.#amsCharacteristics.entityUpdate,
 			Uint8Array.of(
 				ENTITY_ID.TRACK,
 				TRACK_ATTRIBUTE_ID.ARTIST,
@@ -250,7 +277,7 @@ class AMSClient {
 			},
 		);
 		gatt.write(
-			this.#entityUpdateCharacteristic,
+			this.#amsCharacteristics.entityUpdate,
 			Uint8Array.of(
 				ENTITY_ID.PLAYER,
 				PLAYER_ATTRIBUTE_ID.NAME,
@@ -360,12 +387,13 @@ class AMSClient {
 
 	#pumpEntityAttributeReads() {
 		if (this.#readingEntityAttribute || this.#entityAttributeReads.length === 0) return;
-		if (!this.#gatt || !this.#entityAttributeCharacteristic) return;
+		const characteristic = this.#amsCharacteristics.entityAttribute;
+		if (!this.#gatt || !characteristic) return;
 
 		this.#readingEntityAttribute = true;
 		const request = this.#entityAttributeReads.shift();
 		this.#gatt.write(
-			this.#entityAttributeCharacteristic,
+			characteristic,
 			Uint8Array.of(request.entityID, request.attributeID),
 			{ response: true },
 			(writeError) => {
@@ -377,13 +405,14 @@ class AMSClient {
 				}
 
 				Timer.set(() => {
-					if (!this.#gatt || !this.#entityAttributeCharacteristic) {
+					const characteristic = this.#amsCharacteristics.entityAttribute;
+					if (!this.#gatt || !characteristic) {
 						this.#readingEntityAttribute = false;
 						request.callback?.(new Error("disconnected"));
 						this.#scheduleEntityAttributeRead();
 						return;
 					}
-					this.#gatt.read(this.#entityAttributeCharacteristic, (readError, value) => {
+					this.#gatt.read(characteristic, (readError, value) => {
 						this.#readingEntityAttribute = false;
 						const decoded = readError
 							? undefined
@@ -402,9 +431,7 @@ class AMSClient {
 			this.#entityAttributeReadTimer = undefined;
 		}
 		this.#gatt = undefined;
-		this.#remoteCommandCharacteristic = undefined;
-		this.#entityUpdateCharacteristic = undefined;
-		this.#entityAttributeCharacteristic = undefined;
+		this.#amsCharacteristics = {};
 		this.#supportedRemoteCommands = new Uint8Array();
 		this.#entityAttributeReads.length = 0;
 		this.#readingEntityAttribute = false;
@@ -413,6 +440,12 @@ class AMSClient {
 
 function sameUUID(a, b) {
 	return a.toLowerCase() === b;
+}
+
+function amsCharacteristicDefinition(uuid) {
+	for (const definition of REQUIRED_AMS_CHARACTERISTICS) {
+		if (sameUUID(uuid, definition.uuid)) return definition;
+	}
 }
 
 function entityName(entityID) {

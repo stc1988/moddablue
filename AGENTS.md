@@ -140,6 +140,20 @@ sequenceDiagram
 
 `AMSClient` reads the BLE Generic Access Device Name after `onSecured`, in parallel with AMS service discovery. Failure to read GAP Device Name must be logged but must not fail the AMS connection. AMS Player entity `NAME` is still parsed into `state.player.name` for future use, but it is the media player/app name, not the peer device name; do not map it to `model.device.name`.
 
+### AMS Characteristics
+
+`AMSClient.js` discovers the Apple Media Service `89D3502B-0F36-433A-8EF4-C502AD55F8DC` and treats these characteristics as the required AMS surface:
+
+| Characteristic | UUID | Usage |
+| --- | --- | --- |
+| Remote Command | `9B3C81D8-57B1-4A8A-B8DF-0E56F7CA51C2` | Subscribe for the supported remote-command list, then write command IDs to control playback. |
+| Entity Update | `2F7CABCE-808D-411F-9A0C-BB92BA96C102` | Subscribe for player/track notifications, then write entity/attribute request lists to select updates. |
+| Entity Attribute | `C6B2F38C-23AB-46D8-A6AB-A3A870BBD5D7` | Do not subscribe. Write `{ entityID, attributeID }`, then read the characteristic to fetch full attribute text when notifications are truncated or incomplete. |
+
+Only `Remote Command` and `Entity Update` are subscription characteristics in this app. Keep that distinction explicit in `AMSClient.js`: `Entity Attribute` is required for follow-up reads, but adding it to the subscription sequence is incorrect.
+
+`AMSClient.js` requests a larger GATT MTU before security and AMS discovery so `Entity Update` notifications and `Entity Attribute` reads can carry longer track metadata than the default 23-byte ATT MTU allows. If a title/artist/album is still longer than the negotiated MTU payload, the current embedded BLE client API may still return a partial value because it does not expose repeated read-blob offsets.
+
 ### Artwork Fetch And Display
 
 ```mermaid
