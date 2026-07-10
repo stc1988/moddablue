@@ -5,7 +5,7 @@ import Timer from "timer";
 
 const TRACKS = Object.freeze([
 	{
-		title: "Blinding Lights",
+		title: "Blinding Lights Extended Marquee Test Version",
 		artist: "The Weeknd",
 		album: "After Hours",
 		duration: 200,

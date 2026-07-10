@@ -3,12 +3,12 @@ import { Colors, Styles } from "assets";
 const TITLE_HEIGHT = 24;
 const TITLE_START_HOLD_MS = 1800;
 const TITLE_END_HOLD_MS = 900;
-const TITLE_LOOP_HOLD_MS = 1400;
 const TITLE_SCROLL_PIXELS_PER_SECOND = 25;
 const TITLE_SCROLL_INSET = 16;
+const TITLE_SCROLL_GAP = 32;
 
 const TitleScrollStyle = new Style({
-	font: "semibold 18px Open Sans",
+	font: "semibold 18px M PLUS 1",
 	color: Colors.text,
 	horizontal: "left",
 	vertical: "middle",
@@ -24,6 +24,14 @@ const TitleMarquee = Container.template(($) => ({
 		Label($, { anchor: "TITLE_CENTER", left: 0, right: 0, top: 0, height: TITLE_HEIGHT, style: Styles.title }),
 		Label($, {
 			anchor: "TITLE_SCROLL",
+			left: 0,
+			top: 0,
+			height: TITLE_HEIGHT,
+			style: TitleScrollStyle,
+			visible: false,
+		}),
+		Label($, {
+			anchor: "TITLE_SCROLL_NEXT",
 			left: 0,
 			top: 0,
 			height: TITLE_HEIGHT,
@@ -47,23 +55,28 @@ const TitleMarquee = Container.template(($) => ({
 
 			container.time = 0;
 			this.anchors.TITLE_SCROLL.x = TITLE_SCROLL_INSET;
+			this.anchors.TITLE_SCROLL_NEXT.x = TITLE_SCROLL_INSET + this.textWidth + TITLE_SCROLL_GAP;
 			container.start();
 		}
 		onTimeChanged(container) {
 			if (!this.scrollDistance) return;
 
 			const label = this.anchors.TITLE_SCROLL;
+			const next = this.anchors.TITLE_SCROLL_NEXT;
 			const time = container.time;
 			const scrollStart = TITLE_START_HOLD_MS;
 			const scrollEnd = scrollStart + this.scrollDuration;
+			let x;
 
 			if (time < scrollStart) {
-				label.x = TITLE_SCROLL_INSET;
+				x = TITLE_SCROLL_INSET;
 			} else if (time < scrollEnd) {
-				label.x = TITLE_SCROLL_INSET - Math.round((this.scrollDistance * (time - scrollStart)) / this.scrollDuration);
+				x = TITLE_SCROLL_INSET - Math.round((this.scrollDistance * (time - scrollStart)) / this.scrollDuration);
 			} else {
-				label.x = TITLE_SCROLL_INSET - this.scrollDistance;
+				x = TITLE_SCROLL_INSET - this.scrollDistance;
 			}
+			label.x = x;
+			next.x = x + this.textWidth + TITLE_SCROLL_GAP;
 		}
 		setTitle(container, title) {
 			if (title === this.title) return;
@@ -74,6 +87,7 @@ const TitleMarquee = Container.template(($) => ({
 		layout(container) {
 			const center = this.anchors.TITLE_CENTER;
 			const scroll = this.anchors.TITLE_SCROLL;
+			const next = this.anchors.TITLE_SCROLL_NEXT;
 			const title = this.title;
 			const containerWidth = container.width;
 			const textWidth = Math.ceil(Styles.title.measure(title).width);
@@ -87,6 +101,7 @@ const TitleMarquee = Container.template(($) => ({
 				this.scrollDistance = 0;
 				this.scrollDuration = 0;
 				scroll.visible = false;
+				next.visible = false;
 				center.string = title;
 				center.visible = true;
 				return;
@@ -94,12 +109,16 @@ const TitleMarquee = Container.template(($) => ({
 
 			center.visible = false;
 			scroll.string = title;
-			scroll.width = textWidth + TITLE_SCROLL_INSET * 2;
+			next.string = title;
+			scroll.width = textWidth + TITLE_SCROLL_INSET;
+			next.width = textWidth + TITLE_SCROLL_INSET;
 			scroll.x = TITLE_SCROLL_INSET;
+			next.x = TITLE_SCROLL_INSET + textWidth + TITLE_SCROLL_GAP;
 			scroll.visible = true;
-			this.scrollDistance = scroll.width - containerWidth + TITLE_SCROLL_INSET;
+			next.visible = true;
+			this.scrollDistance = textWidth + TITLE_SCROLL_GAP;
 			this.scrollDuration = Math.round((this.scrollDistance * 1000) / TITLE_SCROLL_PIXELS_PER_SECOND);
-			container.duration = TITLE_START_HOLD_MS + this.scrollDuration + TITLE_END_HOLD_MS + TITLE_LOOP_HOLD_MS;
+			container.duration = TITLE_START_HOLD_MS + this.scrollDuration + TITLE_END_HOLD_MS;
 			container.start();
 		}
 	},

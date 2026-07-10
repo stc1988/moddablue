@@ -48,3 +48,9 @@ npm run check:write
 ## Notes
 
 この README はアプリ利用者向けの概要です。実装方針、責務分担、シーケンス、参照すべき Moddable SDK 実装は [AGENTS.md](AGENTS.md) にまとめています。
+
+## License
+
+アプリケーションのソースコードは [MIT License](LICENSE) で提供します。
+
+同梱するフォントなどの第三者資産には、それぞれのライセンスが適用されます。詳細は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。

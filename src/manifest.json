@@ -29,9 +29,37 @@
 	"preload": ["./main"],
 	"resources": {
 		"*-mask": [
-			"$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16",
-			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-16",
-			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-18"
+			{
+				"source": "./assets/fonts/MPLUS1-Medium",
+				"size": 16,
+				"blocks": [
+					"Basic Latin",
+					"Latin-1 Supplement",
+					"General Punctuation",
+					"CJK Symbols and Punctuation",
+					"Hiragana",
+					"Katakana",
+					"Katakana Phonetic Extensions",
+					"CJK Unified Ideographs",
+					"Halfwidth and Fullwidth Forms"
+				]
+			},
+			{
+				"source": "./assets/fonts/MPLUS1-SemiBold",
+				"name": "MPLUS1-Semibold",
+				"size": 18,
+				"blocks": [
+					"Basic Latin",
+					"Latin-1 Supplement",
+					"General Punctuation",
+					"CJK Symbols and Punctuation",
+					"Hiragana",
+					"Katakana",
+					"Katakana Phonetic Extensions",
+					"CJK Unified Ideographs",
+					"Halfwidth and Fullwidth Forms"
+				]
+			}
 		],
 		"*-alpha": ["./assets/masks/*"],
 		"*": ["$(MODDABLE)/modules/crypt/data/ca170"]
