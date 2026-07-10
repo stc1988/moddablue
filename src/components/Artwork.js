@@ -61,7 +61,6 @@ const Artwork = Container.template(($) => ({
 		onModelChanged(_container, model) {
 			const loaded = model.artwork?.state === "loaded" && model.artwork.data;
 			this.anchors.PLACEHOLDER.visible = !loaded;
-			this.anchors.ARTWORK_IMAGE.delegate("onModelChanged", model);
 		}
 	},
 }));

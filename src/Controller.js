@@ -142,7 +142,7 @@ class Controller {
 				`connection=${this.model.connection} playback=${this.model.playback} title=${this.model.track.title}`,
 			);
 		}
-		if (this.view) this.view.delegate("onModelChanged", this.model);
+		if (this.view) this.view.distribute("onModelChanged", this.model);
 	}
 }
 

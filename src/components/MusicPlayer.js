@@ -13,19 +13,6 @@ const MusicPlayer = Container.template(($) => ({
 		Controls($, { anchor: "CONTROLS", ...Layout.controls }),
 		Volume($, { anchor: "VOLUME", ...Layout.volume }),
 	],
-	Behavior: class extends Behavior {
-		onCreate(_container, anchors) {
-			this.anchors = anchors;
-		}
-		onModelChanged(_container, model) {
-			const anchors = this.anchors;
-			anchors.ARTWORK.delegate("onModelChanged", model);
-			anchors.TRACK.delegate("onModelChanged", model);
-			anchors.PROGRESS.delegate("onModelChanged", model);
-			anchors.CONTROLS.delegate("onModelChanged", model);
-			anchors.VOLUME.delegate("onModelChanged", model);
-		}
-	},
 }));
 
 export default MusicPlayer;

@@ -18,12 +18,6 @@ const MediaPlayerApplication = Application.template(($) => ({
 			height: Layout.height,
 		}),
 	],
-	Behavior: class extends Behavior {
-		onModelChanged(application, model) {
-			application.first.delegate("onModelChanged", model);
-			application.first.next.delegate("onModelChanged", model);
-		}
-	},
 }));
 
 export default MediaPlayerApplication;

@@ -1,17 +1,9 @@
+import { ButtonBehavior } from "Behaviors";
 import { log } from "Logger";
 import { Skins } from "assets";
 
-class ControlButtonBehavior extends Behavior {
-	onCreate(_container, data) {
-		this.command = data.command;
-		this.controller = data.controller;
-		this.skin = data.skin;
-	}
-	onTouchBegan(container) {
-		container.skin = Skins.controlActive;
-	}
-	onTouchEnded(container) {
-		container.skin = this.skin;
+class ControlButtonBehavior extends ButtonBehavior {
+	onTap(_container) {
 		log("ui", "control tapped", this.command);
 		if (this.controller) this.controller.onCommand(this.command);
 		else log("ui", "control ignored because controller is not attached", this.command);
@@ -53,7 +45,7 @@ const Controls = Row.template(($) => ({
 			height: 54,
 			icon: Skins.pauseIcon,
 			iconSize: 32,
-			skin: Skins.controlPrimary,
+			skin: Skins.control,
 		}),
 		ControlButton({
 			command: "next",

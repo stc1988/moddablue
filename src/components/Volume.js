@@ -1,3 +1,4 @@
+import { SliderBehavior } from "Behaviors";
 import { Skins } from "assets";
 
 const TRACK_LEFT = 28;
@@ -9,10 +10,6 @@ const TRACK_ACTIVE_HEIGHT = 4;
 const KNOB_SIZE = 8;
 const KNOB_ACTIVE_SIZE = 14;
 const KNOB_CENTER_Y = 9;
-
-function clamp(value, min, max) {
-	return Math.max(min, Math.min(max, value));
-}
 
 const Volume = Container.template(($) => ({
 	active: true,
@@ -37,28 +34,11 @@ const Volume = Container.template(($) => ({
 		Content($, { anchor: "VOLUME_KNOB", left: TRACK_LEFT, top: 5, width: 8, height: 8, skin: Skins.knobSmallInactive }),
 		Content($, { right: 0, top: 0, width: 20, height: 20, skin: Skins.volumeIcon }),
 	],
-	Behavior: class extends Behavior {
+	Behavior: class extends SliderBehavior {
 		onCreate(_container, data) {
-			this.anchors = data;
-			this.controller = data.controller;
-		}
-		onTouchBegan(container, id, x, y) {
-			container.captureTouch(id, x, y);
-			this.dragging = true;
-			this.setActive(true);
-			this.setVolume(container, x, false);
-		}
-		onTouchMoved(container, _id, x) {
-			this.setVolume(container, x, false);
-		}
-		onTouchEnded(container, _id, x) {
-			this.setVolume(container, x, true);
-			this.dragging = false;
-			this.setActive(false);
-		}
-		onTouchCancelled() {
-			this.dragging = false;
-			this.setActive(false);
+			super.onCreate(_container, data);
+			this.trackLeft = TRACK_LEFT;
+			this.trackRight = TRACK_RIGHT;
 		}
 		setActive(active) {
 			this.active = active;
@@ -83,11 +63,11 @@ const Volume = Container.template(($) => ({
 				height,
 			};
 		}
-		setVolume(container, x, commit) {
-			const trackWidth = container.width - TRACK_LEFT - TRACK_RIGHT;
-			const value = clamp((x - container.x - TRACK_LEFT) / trackWidth, 0, 1);
+		onValueChanging(container, value) {
 			this.updateVolume(container, value);
-			if (commit && this.controller) this.controller.onVolumeChange(value);
+		}
+		onValueChanged(_container, value) {
+			if (this.controller) this.controller.onVolumeChange(value);
 		}
 		updateVolume(container, value) {
 			const trackWidth = container.width - TRACK_LEFT - TRACK_RIGHT;

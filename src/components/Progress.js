@@ -1,3 +1,4 @@
+import { SliderBehavior } from "Behaviors";
 import { log } from "Logger";
 import { Skins, Styles } from "assets";
 
@@ -16,10 +17,6 @@ function formatTime(seconds) {
 	const minutes = Math.floor(seconds / 60);
 	const rest = seconds % 60;
 	return `${minutes}:${rest < 10 ? "0" : ""}${rest}`;
-}
-
-function clamp(value, min, max) {
-	return Math.max(min, Math.min(max, value));
 }
 
 const Progress = Container.template(($) => ({
@@ -46,28 +43,11 @@ const Progress = Container.template(($) => ({
 		Content($, { anchor: "PROGRESS_KNOB", left: TRACK_LEFT, top: 4, width: 10, height: 10, skin: Skins.knobInactive }),
 		Label($, { anchor: "DURATION", right: 0, top: 0, width: 38, height: 18, style: Styles.time }),
 	],
-	Behavior: class extends Behavior {
+	Behavior: class extends SliderBehavior {
 		onCreate(_container, data) {
-			this.anchors = data;
-			this.controller = data.controller;
-		}
-		onTouchBegan(container, id, x, y) {
-			container.captureTouch(id, x, y);
-			this.dragging = true;
-			this.setActive(true);
-			this.seek(container, x, false);
-		}
-		onTouchMoved(container, _id, x) {
-			this.seek(container, x, false);
-		}
-		onTouchEnded(container, _id, x) {
-			this.seek(container, x, true);
-			this.dragging = false;
-			this.setActive(false);
-		}
-		onTouchCancelled() {
-			this.dragging = false;
-			this.setActive(false);
+			super.onCreate(_container, data);
+			this.trackLeft = TRACK_LEFT;
+			this.trackRight = TRACK_RIGHT;
 		}
 		setActive(active) {
 			this.active = active;
@@ -92,22 +72,22 @@ const Progress = Container.template(($) => ({
 				height,
 			};
 		}
-		seek(container, x, commit) {
+		onValueChanging(container, fraction) {
 			const duration = this.duration || 0;
 			if (!duration || !this.controller) {
 				log("progress", "seek ignored", `duration=${duration} controller=${this.controller ? "attached" : "missing"}`);
 				return;
 			}
-			const trackWidth = container.width - TRACK_LEFT - TRACK_RIGHT;
-			const fraction = clamp((x - container.x - TRACK_LEFT) / trackWidth, 0, 1);
 			const elapsed = Math.round(duration * fraction);
-			log(
-				"progress",
-				commit ? "seek commit" : "seek preview",
-				`elapsed=${elapsed} duration=${duration} fraction=${fraction}`,
-			);
+			log("progress", "seek preview", `elapsed=${elapsed} duration=${duration} fraction=${fraction}`);
 			this.updateProgress(container, elapsed, duration);
-			if (commit) this.controller.onSeekTo(elapsed);
+		}
+		onValueChanged(_container, fraction) {
+			const duration = this.duration || 0;
+			if (!duration || !this.controller) return;
+			const elapsed = Math.round(duration * fraction);
+			log("progress", "seek commit", `elapsed=${elapsed} duration=${duration} fraction=${fraction}`);
+			this.controller.onSeekTo(elapsed);
 		}
 		updateProgress(container, elapsed, duration) {
 			const trackWidth = container.width - TRACK_LEFT - TRACK_RIGHT;
