@@ -13,7 +13,7 @@ const DeviceInfo = Container.template(($) => ({
 		}
 		onModelChanged(_container, model) {
 			this.anchors.NAME.string = model.device.name;
-			this.anchors.STATUS.string = model.connection === "connected" ? "Connected" : model.device.status;
+			this.anchors.STATUS.string = model.playerConnection === "connected" ? "Connected" : model.device.status;
 		}
 	},
 }));

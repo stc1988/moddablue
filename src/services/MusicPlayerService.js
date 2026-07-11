@@ -41,7 +41,7 @@ class MusicPlayerService {
 		const track = update?.track;
 		if (!track) return true;
 		return (
-			update.connection !== undefined ||
+			update.playerConnection !== undefined ||
 			update.playback !== undefined ||
 			update.volume !== undefined ||
 			update.device !== undefined ||

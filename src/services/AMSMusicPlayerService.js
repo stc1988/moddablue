@@ -34,7 +34,7 @@ class AMSMusicPlayerService extends MusicPlayerService {
 			track: {},
 		};
 		this.emit({
-			connection: ConnectionState.CONNECTING,
+			playerConnection: ConnectionState.CONNECTING,
 			playback: PlaybackState.UNKNOWN,
 			track: createEmptyTrack(),
 			artwork: null,
@@ -45,7 +45,7 @@ class AMSMusicPlayerService extends MusicPlayerService {
 			onPaired: (address) => {
 				log("ams-service", "paired", address);
 				this.emit({
-					connection: ConnectionState.CONNECTING,
+					playerConnection: ConnectionState.CONNECTING,
 					device: { name: "Apple Media Service", status: "Connecting" },
 				});
 				this.client.connect(address);
@@ -55,7 +55,7 @@ class AMSMusicPlayerService extends MusicPlayerService {
 	stop() {
 		log("ams-service", "stop");
 		this.emit({
-			connection: ConnectionState.DISCONNECTED,
+			playerConnection: ConnectionState.DISCONNECTED,
 			playback: PlaybackState.STOPPED,
 			track: createEmptyTrack(),
 			artwork: null,
@@ -102,7 +102,7 @@ class AMSMusicPlayerService extends MusicPlayerService {
 	onAMSConnected() {
 		log("ams-service", "connected");
 		this.emit({
-			connection: ConnectionState.CONNECTED,
+			playerConnection: ConnectionState.CONNECTED,
 			device: { name: "Apple Media Service", status: "Connected" },
 		});
 	}
@@ -115,7 +115,7 @@ class AMSMusicPlayerService extends MusicPlayerService {
 	onAMSError(error) {
 		log("ams-service", "error", error);
 		this.emit({
-			connection: ConnectionState.DISCONNECTED,
+			playerConnection: ConnectionState.DISCONNECTED,
 			playback: PlaybackState.UNKNOWN,
 			track: createEmptyTrack(),
 			artwork: null,

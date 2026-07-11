@@ -15,7 +15,7 @@ const PlaybackState = Object.freeze({
 
 function createInitialModel(initial = {}) {
 	const model = {
-		connection: ConnectionState.DISCONNECTED,
+		playerConnection: ConnectionState.DISCONNECTED,
 		playback: PlaybackState.UNKNOWN,
 		track: createEmptyTrack(),
 		artwork: null,
@@ -29,7 +29,7 @@ function createInitialModel(initial = {}) {
 			status: "Disconnected",
 		},
 	};
-	log("model", "initial state created", `connection=${model.connection} playback=${model.playback}`);
+	log("model", "initial state created", `playerConnection=${model.playerConnection} playback=${model.playback}`);
 	return model;
 }
 
@@ -56,7 +56,7 @@ function applyModelUpdate(model, update) {
 	if (!update) return model;
 	const shouldLog = !isElapsedOnlyUpdate(update);
 	if (shouldLog) logUpdate("model", "apply update", update);
-	if ("connection" in update) model.connection = update.connection;
+	if ("playerConnection" in update) model.playerConnection = update.playerConnection;
 	if ("playback" in update) model.playback = update.playback;
 	if ("track" in update) mergeTrack(model.track, update.track);
 	if ("artwork" in update) model.artwork = update.artwork;
@@ -67,7 +67,7 @@ function applyModelUpdate(model, update) {
 		log(
 			"model",
 			"state changed",
-			`connection=${model.connection} playback=${model.playback} title=${model.track.title}`,
+			`playerConnection=${model.playerConnection} playback=${model.playback} title=${model.track.title}`,
 		);
 	}
 	return model;

@@ -106,7 +106,7 @@ class Controller {
 		this.service.setVolume(volume);
 	}
 	syncProgressTimer() {
-		if (this.model.connection !== ConnectionState.CONNECTED || this.model.playback !== PlaybackState.PLAYING) {
+		if (this.model.playerConnection !== ConnectionState.CONNECTED || this.model.playback !== PlaybackState.PLAYING) {
 			this.stopProgressTimer();
 			return;
 		}
@@ -145,7 +145,7 @@ class Controller {
 			log(
 				"controller",
 				"notify view",
-				`connection=${this.model.connection} playback=${this.model.playback} title=${this.model.track.title}`,
+				`playerConnection=${this.model.playerConnection} playback=${this.model.playback} title=${this.model.track.title}`,
 			);
 		}
 		if (this.view) this.view.distribute("onModelChanged", this.model);

@@ -10,7 +10,7 @@ function describeUpdate(update) {
 	if (!update) return "none";
 
 	const parts = [];
-	appendValue(parts, "connection", update.connection);
+	appendValue(parts, "playerConnection", update.playerConnection);
 	appendValue(parts, "playback", update.playback);
 	appendValue(parts, "volume", update.volume);
 	if (update.network) {
@@ -36,7 +36,7 @@ function describeUpdate(update) {
 function isElapsedOnlyUpdate(update) {
 	if (!update?.track) return false;
 	if (
-		update.connection !== undefined ||
+		update.playerConnection !== undefined ||
 		update.playback !== undefined ||
 		update.volume !== undefined ||
 		update.network !== undefined ||

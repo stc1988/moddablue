@@ -65,7 +65,7 @@ class MockMusicPlayerService extends MusicPlayerService {
 	start() {
 		log("mock-service", "start");
 		this.emit({
-			connection: ConnectionState.CONNECTED,
+			playerConnection: ConnectionState.CONNECTED,
 			playback: PlaybackState.PAUSED,
 			track: this.createTrackUpdate(),
 			volume: this.volume,
@@ -79,7 +79,7 @@ class MockMusicPlayerService extends MusicPlayerService {
 		log("mock-service", "stop");
 		this.clearTimer();
 		this.emit({
-			connection: ConnectionState.DISCONNECTED,
+			playerConnection: ConnectionState.DISCONNECTED,
 			playback: PlaybackState.STOPPED,
 			device: { status: "Stopped" },
 		});
