@@ -14,7 +14,7 @@ function validateRequest(artist, album, size) {
 }
 
 function resizeArtworkUrl(url, size) {
-	return url.replace(/100x100/, `${size}x${size}`);
+	return url.replace(/100x100bb/, `${size}x${size}cc`);
 }
 
 function createArtworkKey(track) {

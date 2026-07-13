@@ -1,0 +1,13 @@
+{
+	"include": [
+		"$(MODDABLE)/modules/io/manifest.json",
+		"$(MODDABLE)/modules/io/ble/client/manifest.json",
+		"$(MODDABLE)/modules/io/ble/server/manifest.json",
+		"$(MODDABLE)/modules/data/text/decoder/manifest.json"
+	],
+	"modules": {
+		"moddablue/ancs/client": "./ANCSClient",
+		"moddablue/ancs/pairing-server": "./ANCSPairingServer",
+		"moddablue/ancs/service": "./ANCSService"
+	}
+}

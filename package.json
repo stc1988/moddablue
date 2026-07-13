@@ -1,11 +1,11 @@
 {
-	"name": "moddable-mediaplayer",
+	"name": "moddablue",
 	"version": "1.0.0",
 	"private": true,
-	"description": "240x320 display-first Moddable Piu media player scaffold for Apple Media Service work.",
+	"description": "Bluetooth Low Energy services and applications built with the Moddable SDK.",
 	"scripts": {
-		"build:sim": "cd src && mcconfig -d -m -p sim",
-		"debug:sim": "cd src && mcconfig -dl -m -p sim",
+		"build:sim": "cd examples/ams-media-player && mcconfig -d -m -p sim",
+		"debug:sim": "cd examples/ams-media-player && mcconfig -dl -m -p sim",
 		"format": "biome format --write .",
 		"format:check": "biome format .",
 		"lint": "biome lint .",
@@ -13,7 +13,13 @@
 		"check:write": "biome check --write .",
 		"typecheck": "tsc --noEmit"
 	},
-	"keywords": [],
+	"keywords": [
+		"moddable",
+		"bluetooth",
+		"ble",
+		"ams",
+		"ancs"
+	],
 	"author": "Satoshi Tanaka",
 	"license": "MIT",
 	"devDependencies": {

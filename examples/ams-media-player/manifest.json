@@ -12,6 +12,9 @@
 	"config": {
 		"mediaPlayerTrace": true
 	},
+	"creation": {
+		"stack": 512
+	},
 	"modules": {
 		"*": [
 			"./main",
@@ -86,14 +89,9 @@
 			}
 		},
 		"esp32/*": {
-			"include": [
-				"$(MODDABLE)/modules/io/manifest.json",
-				"$(MODDABLE)/modules/io/ble/client/manifest.json",
-				"$(MODDABLE)/modules/io/ble/server/manifest.json"
-			],
+			"include": ["../../modules/ams/manifest.json"],
 			"modules": {
-				"MusicPlayerServiceProvider": "./services/AMSMusicPlayerService",
-				"*": ["./services/ams/*"]
+				"MusicPlayerServiceProvider": "./services/AMSMusicPlayerService"
 			}
 		}
 	}

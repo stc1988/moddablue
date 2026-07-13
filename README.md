@@ -1,56 +1,78 @@
-# Moddable Media Player
+# Moddablue
 
-Moddable Piu で作る小型ディスプレイ向けのメディアプレイヤー GUI です。現在は simulator で動く mock service を初期状態にしており、再生中の曲情報、アルバムアート、再生位置、音量、接続先デバイスを 240x320 の画面に表示します。
+Moddablue is a collection of Bluetooth Low Energy services and applications built with the
+[Moddable SDK](https://github.com/Moddable-OpenSource/moddable).
 
-## Features
+It provides independently buildable examples for using BLE with Moddable, including media and notification integration
+with iPhone.
 
-- 曲名、アーティスト名、アルバムアートを表示
-- 再生、一時停止、前後トラック送りのタッチ操作
-- 再生位置スライダーの表示とタッチ操作
-- 音量スライダーの表示とタッチ操作
-- 接続先デバイス名と接続状態の表示
-- iTunes Search API を使ったアルバムアート取得
+## Modules
 
-## Current Status
+| Module | Import | Description |
+| --- | --- | --- |
+| [`ams`](modules/ams/) | `moddablue/ams/*` | AMS GATT client and peripheral server for pairing |
+| [`ancs`](modules/ancs/) | `moddablue/ancs/*` | ANCS connection, notification retrieval, and notification actions |
 
-デフォルトでは simulator-safe な mock service が使われます。実機向け Apple Media Service 連携は `esp32/*` platform 用のサービスとして分離されていますが、通常の simulator 起動では BLE/AMS には接続しません。
+Each module has its own `manifest.json` and can be included from an application's manifest. See the module README files
+for public APIs and include examples.
 
-アルバムアートはネットワーク経由で取得します。
+## Examples
 
-## Run
+| Example | Service | Target | Description |
+| --- | --- | --- | --- |
+| [`ams-media-player`](examples/ams-media-player/) | Apple Media Service (AMS) | simulator / ESP32 | 240x320 Piu media player. The simulator uses a mock service. |
+| [`ancs-notifications`](examples/ancs-notifications/) | Apple Notification Center Service (ANCS) | ESP32 | Retrieves iPhone notifications and performs notification actions. |
 
-ビルド確認だけを行う場合は、リポジトリルートから次を実行します。
+Each example has its own `manifest.json`, includes reusable implementations from `modules/`, and can be built
+independently. See each example's README for hardware requirements, usage, and limitations.
+
+## Getting Started
+
+### AMS media player in the simulator
 
 ```sh
-cd src && mcconfig -d -m -p sim -t build
+npm install
+npm run build:sim
 ```
 
-xsdb でデバッグ起動する場合はこちらです。
+To start the debugger:
 
 ```sh
 npm run debug:sim
 ```
 
-`(xsdb)` プロンプトでは `help` で利用可能なデバッガコマンドを確認できます。
+### ANCS notifications on ESP32
 
-## Check
+```sh
+cd examples/ancs-notifications
+mcconfig -d -m -p esp32/moddable_two
+```
+
+## Development
+
+Run repository-wide static checks:
 
 ```sh
 npm run check
+npm run typecheck
 ```
 
-整形も含めて自動修正する場合:
+To apply automatic formatting and safe fixes:
 
 ```sh
 npm run check:write
 ```
 
-## Notes
+Implementation responsibilities, validation rules, and relevant Moddable SDK references are documented in
+[`AGENTS.md`](AGENTS.md).
 
-この README はアプリ利用者向けの概要です。実装方針、責務分担、シーケンス、参照すべき Moddable SDK 実装は [AGENTS.md](AGENTS.md) にまとめています。
+## Adding a Module and Example
+
+Add reusable BLE protocol logic under `modules/<service-name>/` together with a manifest and README. Add a usage example
+under `examples/<example-name>/` with its own `manifest.json` and README, then include the module manifest. Keep UI and
+application-specific state adapters in the example.
 
 ## License
 
-アプリケーションのソースコードは [MIT License](LICENSE) で提供します。
-
-同梱するフォントなどの第三者資産には、それぞれのライセンスが適用されます。詳細は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+Source code is provided under the [MIT License](LICENSE). Bundled fonts and other third-party assets remain subject to
+their respective licenses. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for details.
