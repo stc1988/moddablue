@@ -1,0 +1,24 @@
+{
+	"include": ["$(MODDABLE)/examples/manifest_base.json", "../../modules/ancs/manifest.json"],
+	"modules": {
+		"*": ["./main"]
+	},
+	"config": {
+		"ancsAction": "none"
+	},
+	"creation": {
+		"chunk": {
+			"initial": 32768
+		},
+		"heap": {
+			"initial": 3072
+		},
+		"stack": 384
+	},
+	"platforms": {
+		"esp32/*": {},
+		"...": {
+			"error": "ANCS example currently requires an ESP32 BLE target"
+		}
+	}
+}

@@ -1,7 +1,7 @@
-import { AMSClient, RemoteCommandID } from "AMSClient";
-import AMSPairingServer from "AMSPairingServer";
 import { log } from "Logger";
 import MusicPlayerService from "MusicPlayerService";
+import { AMSClient, RemoteCommandID } from "moddablue/ams/client";
+import AMSPairingServer from "moddablue/ams/pairing-server";
 import { ConnectionState, createEmptyTrack, PlaybackState } from "model";
 
 const AMS_PLAYBACK_STATE = Object.freeze({

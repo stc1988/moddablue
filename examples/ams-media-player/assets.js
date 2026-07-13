@@ -28,6 +28,7 @@ const Textures = Object.freeze({
 	knobLarge: new Texture("knob-large-mask.png"),
 	knobSmall: new Texture("knob-small-mask.png"),
 	backgroundGradient: new Texture("background-gradient-mask.png"),
+	statusIcons: new Texture("status-icons-mask.png"),
 });
 
 const iconSkin = (texture, color = Colors.text, size = 32) =>
@@ -42,6 +43,15 @@ const Skins = Object.freeze({
 	app: new Skin({ fill: Colors.background }),
 	panel: new Skin({ fill: Colors.panel }),
 	panelAlt: new Skin({ fill: Colors.panelAlt }),
+	statusHeader: new Skin({ fill: Colors.transparent }),
+	statusIcon: new Skin({
+		texture: Textures.statusIcons,
+		width: 16,
+		height: 16,
+		states: 16,
+		variants: 16,
+		color: Colors.white,
+	}),
 	progressTrack: new Skin({ fill: Colors.border }),
 	sliderFillActive: new Skin({ fill: Colors.white }),
 	sliderFillInactive: new Skin({ fill: Colors.sliderInactive }),
@@ -141,6 +151,8 @@ const Layout = Object.freeze({
 	width: 240,
 	height: 320,
 	margin: 12,
+	statusHeader: { left: 0, top: 0, width: 240, height: 22 },
+	statusIconSize: 16,
 	artwork: { left: 56, top: 14, width: 128, height: 128 },
 	track: { left: 12, top: 148, width: 216, height: 40 },
 	progress: { left: 12, top: 190, width: 216, height: 22 },

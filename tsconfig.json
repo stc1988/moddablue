@@ -1,5 +1,5 @@
 {
-	"include": ["src/**/*"],
+	"include": ["examples/**/*.js", "modules/**/*.js"],
 	"compilerOptions": {
 		"incremental": true,
 		"outDir": "dist",
@@ -15,12 +15,19 @@
 		"noImplicitThis": false,
 		"strictNullChecks": false,
 		"paths": {
-			"MusicPlayerServiceProvider": ["./src/services/MockMusicPlayerService"],
+			"MusicPlayerServiceProvider": ["./examples/ams-media-player/services/MockMusicPlayerService"],
+			"moddablue/ams/client": ["./modules/ams/AMSClient"],
+			"moddablue/ams/pairing-server": ["./modules/ams/AMSPairingServer"],
+			"moddablue/ancs/client": ["./modules/ancs/ANCSClient"],
+			"moddablue/ancs/pairing-server": ["./modules/ancs/ANCSPairingServer"],
+			"moddablue/ancs/service": ["./modules/ancs/ANCSService"],
 			"*": [
-				"./src/*",
-				"./src/components/*",
-				"./src/services/*",
-				"./src/services/ams/*",
+				"./examples/ams-media-player/*",
+				"./examples/ams-media-player/components/*",
+				"./examples/ams-media-player/services/*",
+				"./examples/ancs-notifications/*",
+				"./modules/ams/*",
+				"./modules/ancs/*",
 				"./node_modules/@moddable/typings/*",
 				"./node_modules/@moddable/typings/ble/*",
 				"./node_modules/@moddable/typings/web/*"
