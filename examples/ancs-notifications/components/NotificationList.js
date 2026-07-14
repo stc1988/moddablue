@@ -1,5 +1,9 @@
 import { Skins, Styles } from "NotificationAssets";
 
+const MESSAGE_TOP = 49;
+const MESSAGE_BOTTOM = 8;
+const MAX_MESSAGE_LINES = 3;
+
 class VerticalScrollerBehavior extends Behavior {
 	onTouchBegan(scroller, _id, _x, y) {
 		this.anchor = scroller.scroll.y;
@@ -44,6 +48,21 @@ class DismissButtonBehavior extends Behavior {
 	}
 }
 
+class NotificationCardBehavior extends Behavior {
+	onCreate(_card, anchors) {
+		this.anchors = anchors;
+	}
+
+	onDisplaying(card) {
+		const message = this.anchors.MESSAGE;
+		const lineHeight = Math.ceil(Styles.message.measure("Ag").height);
+		const messageHeight = Math.min(message.height, lineHeight * MAX_MESSAGE_LINES);
+
+		message.height = messageHeight;
+		card.height = MESSAGE_TOP + messageHeight + MESSAGE_BOTTOM;
+	}
+}
+
 const NotificationCard = Container.template(($) => {
 	const notification = $.notification;
 	const dismissible = notification.hasNegativeAction && !notification.pendingDismissal;
@@ -56,7 +75,9 @@ const NotificationCard = Container.template(($) => {
 		right: 8,
 		top: 8,
 		height: 106,
+		clip: true,
 		skin: notification.pendingDismissal ? Skins.cardPending : Skins.card,
+		Behavior: NotificationCardBehavior,
 		contents: [
 			Content($, { left: 0, top: 0, width: 4, bottom: 0, skin: Skins.accent }),
 			Label($, { left: 12, right: 104, top: 6, height: 19, style: Styles.appName, string: appName }),
@@ -69,7 +90,7 @@ const NotificationCard = Container.template(($) => {
 				string: notification.receivedTime,
 			}),
 			Label($, { left: 12, right: 46, top: 26, height: 20, style: Styles.title, string: title }),
-			Text($, { left: 12, right: 12, top: 49, height: 44, style: Styles.message, string: message }),
+			Text($, { anchor: "MESSAGE", left: 12, right: 12, top: MESSAGE_TOP, style: Styles.message, string: message }),
 			Container($, {
 				right: 4,
 				top: 1,

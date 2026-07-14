@@ -4,25 +4,24 @@ import Timer from "timer";
 
 const MOCK_NOTIFICATIONS = Object.freeze([
 	{
-		appIdentifier: "com.apple.MobileSMS",
-		appName: "Messages",
-		title: "Aya",
-		message: "Are we still meeting at the station at 7?",
+		appIdentifier: "com.moddablue.layout-test",
+		appName: "Layout Test",
+		title: "One-line body",
+		message: "This is one line.",
 		hasNegativeAction: true,
 	},
 	{
-		appIdentifier: "com.apple.mobilemail",
-		appName: "Mail",
-		title: "Design review",
-		subtitle: "Tomorrow, 10:00",
-		message: "The latest prototype is ready for review.",
+		appIdentifier: "com.moddablue.layout-test",
+		appName: "Layout Test",
+		title: "Two-line body",
+		message: "This is line one.\nThis is line two.",
 		hasNegativeAction: true,
 	},
 	{
-		appIdentifier: "com.apple.reminders",
-		appName: "Reminders",
-		title: "Buy coffee beans",
-		message: "When arriving near the grocery store",
+		appIdentifier: "com.moddablue.layout-test",
+		appName: "Layout Test",
+		title: "Four-line body",
+		message: "This is line one.\nThis is line two.\nThis is line three.\nThis is line four.",
 		hasNegativeAction: false,
 	},
 	{
