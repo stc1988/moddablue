@@ -54,6 +54,7 @@ function applyServiceUpdate(model, update) {
 	if (!update) return model;
 	if (update.connection !== undefined) model.connection = update.connection;
 	if (update.status !== undefined) model.status = update.status;
+	if (update.clearNotifications) model.notifications.length = 0;
 	if (update.notification) addOrUpdateNotification(model, update.notification);
 	if (update.removedUID !== undefined) removeNotification(model, update.removedUID);
 	if ("error" in update) model.error = update.error === undefined ? undefined : `${update.error}`;

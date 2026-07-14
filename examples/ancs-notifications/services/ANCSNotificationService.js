@@ -45,6 +45,10 @@ class ANCSNotificationService extends NotificationService {
 		this.emit({ removedUID: notification.uid });
 	}
 
+	onANCSSessionEnded() {
+		this.emit({ clearNotifications: true });
+	}
+
 	onANCSError(error) {
 		this.emit({ status: "ANCS error", error });
 	}

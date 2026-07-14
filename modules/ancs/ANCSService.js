@@ -67,7 +67,9 @@ class ANCSService {
 	}
 
 	#scheduleReconnect() {
+		const sessionWasReady = this.ready;
 		this.ready = false;
+		if (sessionWasReady) this.delegate?.onANCSSessionEnded?.();
 		this.delegate?.onANCSStatus?.("reconnecting");
 		if (this.reconnectTimer) return;
 		this.reconnectTimer = Timer.set(() => {
