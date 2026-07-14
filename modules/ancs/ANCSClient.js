@@ -38,6 +38,12 @@ const NotificationAttributeID = Object.freeze({
 });
 const ActionID = Object.freeze({ positive: 0, negative: 1 });
 const AppAttributeID = Object.freeze({ displayName: 0 });
+const ANCS_ERROR_DEFINITIONS = Object.freeze({
+	160: Object.freeze({ code: "unknownCommand", message: "ANCS command was not recognized" }),
+	161: Object.freeze({ code: "invalidCommand", message: "ANCS command was improperly formatted" }),
+	162: Object.freeze({ code: "invalidParameter", message: "ANCS command referenced an invalid object" }),
+	163: Object.freeze({ code: "actionFailed", message: "ANCS notification action failed" }),
+});
 const REQUESTED_ATTRIBUTES = Object.freeze([
 	[NotificationAttributeID.appIdentifier],
 	[NotificationAttributeID.title, 96],
@@ -125,7 +131,7 @@ class ANCSClient {
 		writeUID(packet, 1, uid);
 		packet[5] = actionID;
 		this.#gatt.write(controlPoint, packet, { response: true }, (error) => {
-			if (error) this.delegate?.onANCSError?.(error);
+			if (error) this.delegate?.onANCSError?.(normalizeControlPointError(error));
 		});
 		return true;
 	}
@@ -214,7 +220,7 @@ class ANCSClient {
 		const packet = makeNotificationAttributeRequest(this.#activeRequest.notification.uid);
 		this.#gatt.write(this.#characteristics.controlPoint, packet, { response: true }, (error) => {
 			if (!error) return;
-			this.delegate?.onANCSError?.(error);
+			this.delegate?.onANCSError?.(normalizeControlPointError(error));
 			this.#activeRequest = undefined;
 			this.#requestNext();
 		});
@@ -259,7 +265,7 @@ class ANCSClient {
 			{ response: true },
 			(error) => {
 				if (!error) return;
-				this.delegate?.onANCSError?.(error);
+				this.delegate?.onANCSError?.(normalizeControlPointError(error));
 				notification.appName = appIdentifier;
 				this.#deliverNotification(notification);
 			},
@@ -364,6 +370,25 @@ function append(left, right) {
 	result.set(left);
 	result.set(right, left.length);
 	return result;
+}
+
+function normalizeControlPointError(error) {
+	let status;
+	if (typeof error === "number") status = error;
+	else if (typeof error?.status === "number") status = error.status;
+	else if (typeof error?.message === "string") status = Number(error.message);
+	else if (typeof error === "string") status = Number(error);
+
+	if (!Number.isInteger(status)) return error;
+	const code = status > 0xff ? status & 0xff : status;
+	const definition = ANCS_ERROR_DEFINITIONS[code];
+	if (!definition) return error;
+
+	const normalized = new Error(definition.message);
+	normalized.name = "ANCSControlPointError";
+	normalized.code = definition.code;
+	normalized.status = status;
+	return normalized;
 }
 
 function readUID(bytes, offset) {
