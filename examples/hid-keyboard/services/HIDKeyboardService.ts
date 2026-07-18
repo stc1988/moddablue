@@ -16,10 +16,12 @@ interface HIDKeyboardService {
 	onConnectionChanged: ((state: ConnectionState) => void) | null;
 	onIndicatorsChanged: ((indicators: number) => void) | null;
 	onNotifyError: ((error: Error) => void) | null;
+	onPasskeyRequested: (() => void) | null;
 
 	close(): void;
 	getConnectionState(): ConnectionState;
 	notifyCharacter(character: string, modifiers?: number): boolean;
+	submitPasskey(passkey: number): boolean;
 }
 
 const INDICATOR = Object.freeze({

@@ -30,6 +30,11 @@ keyboard.onConnectionChanged = (state) => {
 	trace(`connected=${state.connected} subscribed=${state.subscribed}\n`);
 };
 
+keyboard.onPasskeyRequested = () => {
+	// Collect the six digits displayed by the host, then submit them.
+	keyboard.submitPasskey(123456);
+};
+
 keyboard.notifyKeyCode(HIDKeyboardServer.KEY_CODE.ENTER);
 keyboard.notifyCharacter("A");
 ```
@@ -94,13 +99,19 @@ subscribed report matching the active protocol.
 | `manufacturerName` | `"Moddablue"` | Device Information manufacturer string. |
 | `modelNumber` | `"BLE HID Keyboard"` | Device Information model string. |
 | `firmwareRevision` | `"1.0.0"` | Device Information firmware string. |
+| `vendorIdSource` | `2` | PnP ID vendor source: `1` for Bluetooth SIG or `2` for USB-IF. |
+| `vendorId` | `0x16c0` | Development PnP vendor ID. Use an ID assigned to your product for distribution. |
+| `productId` | `0x05df` | Development PnP product ID. Use an ID assigned to your product for distribution. |
+| `productVersion` | `0x0100` | PnP product version in binary-coded decimal form. |
 
 Use `setBatteryLevel()` to update the value returned by Battery Service reads. Use `close()` to stop the BLE server and
 clear pending key timers.
 
 ## Security
 
-Bonding and immediate encryption are enabled with no-input/no-output pairing. If a host no longer reconnects after a
-report-map or security change, forget the keyboard in the host Bluetooth settings and pair it again.
+Bonding, authenticated passkey entry, and immediate encryption are enabled. The host displays six digits; the peripheral
+must collect those digits and pass the resulting number to `submitPasskey()`. HID discovery data, the mandatory PnP ID,
+and report subscriptions require an encrypted connection. If a host no longer reconnects after a report-map, identity,
+or security change, forget the keyboard in the host Bluetooth settings and pair it again.
 
 Media controls use the HID Consumer Control usage page and are intentionally not part of this keyboard report.

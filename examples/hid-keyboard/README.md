@@ -19,8 +19,9 @@ To launch it with the debugger:
 npm run debug:hid:sim
 ```
 
-The simulator uses `MockHIDKeyboardServer`. It changes from **PAIRING** to **SECURING** and then **CONNECTED** without
-opening Bluetooth. Touching a key writes the simulated HID input to the debugger:
+The simulator uses `MockHIDKeyboardServer`. It changes from **PAIRING** to **AUTH CODE** without opening Bluetooth.
+Enter `123456` on the touch keyboard and tap **OK** to continue to **CONNECTED**. Touching a key then writes the
+simulated HID input to the debugger:
 
 ```text
 [hid-keyboard/mock] key="A" modifiers=0
@@ -44,8 +45,10 @@ From this directory:
 mcconfig -d -m -p esp32/moddable_two
 ```
 
-Pair **Moddablue Keyboard** in the host operating system and focus a text field. The header changes from **PAIRING** to
-**SECURING**, then **CONNECTED** once the host subscribes to keyboard input. Tap the on-screen keys to type.
+Pair **Moddablue Keyboard** in the host operating system. When the host displays a six-digit pairing code, the keyboard
+automatically switches to its numeric layout. Enter that code on the touchscreen and tap **OK**. The header changes
+from **PAIRING** to **AUTH CODE**, then **CONNECTED** once the host subscribes to keyboard input. Focus a text field and
+tap the on-screen keys to type.
 
 The keyboard supports:
 
@@ -55,6 +58,20 @@ The keyboard supports:
 - Single-tap input without row expansion
 
 Forget and pair the keyboard again after changing its HID report map or security configuration.
+
+On macOS, remove **Moddablue Keyboard** from **System Settings > Bluetooth** before installing a build that changes the
+PnP ID or encrypted GATT attributes. Restart the device, pair it again, and wait for these messages:
+
+```text
+[moddablue/hid] connected
+[moddablue/hid] passkey action=input
+[moddablue/hid] passkey submitted
+[moddablue/hid] secured encrypted=true authenticated=true bonded=true keySize=16
+[moddablue/hid] input report subscribed
+```
+
+The ESP32 build enables NimBLE repeat-pairing deletion. If macOS has forgotten the keyboard while an older bond remains
+in ESP32 NVS, the stack removes that stale bond and retries pairing instead of leaving the connection unsecured.
 
 ## BLE Input Mapping
 

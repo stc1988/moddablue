@@ -1,3 +1,5 @@
+/// <reference path="./moddable-extensions.d.ts" />
+
 import { type ConnectionState, type HIDKeyboardService, INDICATOR } from "HIDKeyboardService";
 import HIDKeyboardServiceProvider from "HIDKeyboardServiceProvider";
 import { Keyboard } from "keyboard";
@@ -36,8 +38,14 @@ const KeyboardStyle = new Style({
 type AppData = {
 	server: HIDKeyboardService;
 	FEEDBACK?: MC.Label;
+	KEYBOARD?: MC.Port;
 	STATUS_DOT?: MC.Content;
 	STATUS_LABEL?: MC.Label;
+};
+
+type KeyboardBehaviorState = MC.Behavior & {
+	SYMBOL?: string[];
+	state?: string[];
 };
 
 function keyName(key: string): string {
@@ -55,6 +63,8 @@ function keyName(key: string): string {
 
 class KeyboardAppBehavior extends Behavior {
 	declare data: AppData;
+	#awaitingPasskey = false;
+	#passkey = "";
 
 	onCreate(_application: MC.Application, data: AppData) {
 		this.data = data;
@@ -69,6 +79,31 @@ class KeyboardAppBehavior extends Behavior {
 	onKeyUp(_application: MC.Application, key: string) {
 		const feedback = this.data.FEEDBACK;
 		if (!feedback) return;
+		if (this.#awaitingPasskey) {
+			if (key === "\b") {
+				this.#passkey = this.#passkey.slice(0, -1);
+			} else if (key === "\r") {
+				if (this.#passkey.length !== 6) {
+					feedback.state = 2;
+					feedback.string = "Enter all 6 digits";
+					return;
+				}
+				const submitted = this.data.server.submitPasskey(Number(this.#passkey));
+				feedback.state = submitted ? 0 : 2;
+				feedback.string = submitted ? "Authenticating..." : "Pairing code expired";
+				if (submitted) this.#awaitingPasskey = false;
+				return;
+			} else if (key >= "0" && key <= "9" && this.#passkey.length < 6) {
+				this.#passkey += key;
+			} else {
+				feedback.state = 2;
+				feedback.string = "Use digits, then tap OK";
+				return;
+			}
+			feedback.state = 0;
+			feedback.string = `Pair code: ${this.#passkey.padEnd(6, "•")}`;
+			return;
+		}
 		const sent = this.data.server.notifyCharacter(key);
 		feedback.state = sent ? 1 : 2;
 		feedback.string = sent ? `Sent: ${keyName(key)}` : "Pair with a host before typing";
@@ -81,6 +116,8 @@ class KeyboardAppBehavior extends Behavior {
 		if (!dot || !label || !feedback) return;
 
 		if (state.subscribed) {
+			this.#awaitingPasskey = false;
+			this.#passkey = "";
 			dot.state = 2;
 			label.state = 2;
 			label.string = "CONNECTED";
@@ -93,11 +130,33 @@ class KeyboardAppBehavior extends Behavior {
 			feedback.state = 0;
 			feedback.string = "Waiting for keyboard subscription";
 		} else {
+			this.#awaitingPasskey = false;
+			this.#passkey = "";
 			dot.state = 0;
 			label.state = 0;
 			label.string = "PAIRING";
 			feedback.state = 0;
 			feedback.string = "Pair “Moddablue Keyboard”";
+		}
+	}
+
+	onPasskeyRequested(_application: MC.Application) {
+		this.#awaitingPasskey = true;
+		this.#passkey = "";
+		const keyboard = this.data.KEYBOARD;
+		const behavior = keyboard?.behavior as KeyboardBehaviorState | undefined;
+		if (keyboard && behavior?.SYMBOL) {
+			behavior.state = behavior.SYMBOL;
+			keyboard.invalidate();
+		}
+		if (this.data.STATUS_DOT) this.data.STATUS_DOT.state = 1;
+		if (this.data.STATUS_LABEL) {
+			this.data.STATUS_LABEL.state = 1;
+			this.data.STATUS_LABEL.string = "AUTH CODE";
+		}
+		if (this.data.FEEDBACK) {
+			this.data.FEEDBACK.state = 0;
+			this.data.FEEDBACK.string = "Enter the 6-digit Mac code";
 		}
 	}
 }
@@ -158,6 +217,7 @@ const KeyboardView = Column.template(($: AppData) => ({
 			height: 164,
 			contents: [
 				Keyboard($, {
+					anchor: "KEYBOARD",
 					doTransition: false,
 					style: KeyboardStyle,
 				}),
@@ -192,6 +252,9 @@ export default function () {
 	};
 	server.onNotifyError = (error) => {
 		trace(`[hid-keyboard] notify failed: ${error.message}\n`);
+	};
+	server.onPasskeyRequested = () => {
+		app.distribute("onPasskeyRequested");
 	};
 
 	app.distribute("onBLEStateChanged", server.getConnectionState());

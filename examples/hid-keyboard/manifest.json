@@ -54,6 +54,9 @@
 			}
 		},
 		"esp32/*": {
+			"build": {
+				"SDKCONFIGPATH": "./sdkconfig"
+			},
 			"include": ["../../modules/hid/manifest.json"],
 			"modules": {
 				"HIDKeyboardServiceProvider": "./services/BLEHIDKeyboardServerProvider"

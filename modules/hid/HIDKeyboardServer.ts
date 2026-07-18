@@ -5,6 +5,10 @@ const DEFAULT_DEVICE_NAME = "BLE Keyboard";
 const DEFAULT_MANUFACTURER_NAME = "Moddablue";
 const DEFAULT_MODEL_NUMBER = "BLE HID Keyboard";
 const DEFAULT_FIRMWARE_REVISION = "1.0.0";
+const DEFAULT_VENDOR_ID_SOURCE = 0x02;
+const DEFAULT_VENDOR_ID = 0x16c0;
+const DEFAULT_PRODUCT_ID = 0x05df;
+const DEFAULT_PRODUCT_VERSION = 0x0100;
 const DEFAULT_RELEASE_DELAY_MS = 20;
 const DEFAULT_BATTERY_LEVEL = 100;
 const AD_FLAG_GENERAL_DISCOVERABLE = 0x02;
@@ -24,7 +28,9 @@ type KeyboardInputReportSubscription = {
 
 type KeyboardConnection = {
 	notify(characteristic: unknown, value: ArrayBuffer, callback?: (error?: Error | number) => void): void;
+	replyToPasskey(action: "input", value: number): void;
 	subscribedReports?: KeyboardInputReportSubscription[];
+	batterySubscribed?: boolean;
 	releaseTimer?: ReturnType<typeof Timer.set>;
 };
 
@@ -41,6 +47,10 @@ type HIDKeyboardServerOptions = {
 	manufacturerName?: string;
 	modelNumber?: string;
 	firmwareRevision?: string;
+	vendorIdSource?: 1 | 2;
+	vendorId?: number;
+	productId?: number;
+	productVersion?: number;
 };
 
 type KeyOptions = {
@@ -67,6 +77,7 @@ type ConnectionState = {
 type ConnectionHandler = ((state: ConnectionState) => void) | null;
 type IndicatorHandler = ((indicators: number) => void) | null;
 type NotifyErrorHandler = ((error: Error) => void) | null;
+type PasskeyRequestHandler = (() => void) | null;
 
 type QueuedTextReport = {
 	intervalMs: number;
@@ -402,6 +413,8 @@ class HIDKeyboardServer {
 	#releaseDelayMs: number;
 	#server?: GATTServer;
 	#batteryLevel: number;
+	#batteryLevelCharacteristic?: KeyboardCharacteristic;
+	#passkeyConnection?: KeyboardConnection;
 	#protocolMode = Uint8Array.of(PROTOCOL_MODE.REPORT);
 	#outputReport = Uint8Array.of(0);
 	#activeTextReport?: QueuedTextReport;
@@ -410,6 +423,7 @@ class HIDKeyboardServer {
 	onConnectionChanged: ConnectionHandler = null;
 	onIndicatorsChanged: IndicatorHandler = null;
 	onNotifyError: NotifyErrorHandler = null;
+	onPasskeyRequested: PasskeyRequestHandler = null;
 
 	constructor(options: HIDKeyboardServerOptions = {}) {
 		const deviceName = options.deviceName ?? DEFAULT_DEVICE_NAME;
@@ -418,6 +432,10 @@ class HIDKeyboardServer {
 		const manufacturerName = options.manufacturerName ?? DEFAULT_MANUFACTURER_NAME;
 		const modelNumber = options.modelNumber ?? DEFAULT_MODEL_NUMBER;
 		const firmwareRevision = options.firmwareRevision ?? DEFAULT_FIRMWARE_REVISION;
+		const vendorIdSource = options.vendorIdSource ?? DEFAULT_VENDOR_ID_SOURCE;
+		const vendorId = options.vendorId ?? DEFAULT_VENDOR_ID;
+		const productId = options.productId ?? DEFAULT_PRODUCT_ID;
+		const productVersion = options.productVersion ?? DEFAULT_PRODUCT_VERSION;
 		if (!Number.isInteger(batteryLevel) || batteryLevel < 0 || batteryLevel > 100) {
 			throw new RangeError("batteryLevel must be an integer from 0 to 100.");
 		}
@@ -426,6 +444,18 @@ class HIDKeyboardServer {
 		}
 		if (ArrayBuffer.fromString(deviceName).byteLength > 29) {
 			throw new RangeError("deviceName must be at most 29 UTF-8 bytes.");
+		}
+		if (vendorIdSource !== 1 && vendorIdSource !== 2) {
+			throw new RangeError("vendorIdSource must be 1 (Bluetooth SIG) or 2 (USB-IF).");
+		}
+		for (const [name, value] of [
+			["vendorId", vendorId],
+			["productId", productId],
+			["productVersion", productVersion],
+		] as const) {
+			if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
+				throw new RangeError(`${name} must be an integer from 0 through 65535.`);
+			}
 		}
 		this.#advertisingRequested = options.autoAdvertise ?? true;
 		this.#deviceName = deviceName;
@@ -450,14 +480,33 @@ class HIDKeyboardServer {
 			logLabel: "[moddablue/hid] boot input report",
 			protocolMode: PROTOCOL_MODE.BOOT,
 		});
+		const batteryLevelCharacteristic = {
+			uuid: "2a19",
+			properties: GATTServer.properties.readEncrypted | GATTServer.properties.subscribeEncrypted,
+			onRead() {
+				return Uint8Array.of(keyboard.#batteryLevel);
+			},
+			onSubscribe(connection: KeyboardConnection) {
+				connection.batterySubscribed = true;
+			},
+			onUnsubscribe(characteristicOrConnection: KeyboardCharacteristic, connection?: KeyboardConnection) {
+				const targetConnection = connection ?? (characteristicOrConnection as KeyboardConnection);
+				targetConnection.batterySubscribed = false;
+			},
+		};
+		this.#batteryLevelCharacteristic = batteryLevelCharacteristic;
+		const security = {
+			authenticate: true,
+			bond: true,
+			display: false,
+			immediate: true,
+			ioCapabilities: "numbers",
+			keyboard: true,
+		} as const;
 
 		this.#server = new GATTServer({
 			mtu: 128,
-			security: {
-				bond: true,
-				immediate: true,
-				ioCapabilities: "none",
-			},
+			security,
 			services: [
 				// Generic Access Service: exposes the GAP device name and HID keyboard appearance.
 				{
@@ -499,21 +548,26 @@ class HIDKeyboardServer {
 							properties: GATTServer.properties.read,
 							value: ArrayBuffer.fromString(firmwareRevision),
 						},
+						{
+							// PnP ID: mandatory device identity for a HOGP Report Host.
+							uuid: "2a50",
+							properties: GATTServer.properties.readEncrypted,
+							value: Uint8Array.of(
+								vendorIdSource,
+								vendorId & 0xff,
+								vendorId >> 8,
+								productId & 0xff,
+								productId >> 8,
+								productVersion & 0xff,
+								productVersion >> 8,
+							),
+						},
 					],
 				},
 				// Battery Service: lets hosts read the current battery percentage.
 				{
 					uuid: "180f",
-					characteristics: [
-						{
-							// Battery Level: single byte percentage, 0-100.
-							uuid: "2a19",
-							properties: GATTServer.properties.read,
-							onRead() {
-								return Uint8Array.of(keyboard.#batteryLevel);
-							},
-						},
-					],
+					characteristics: [batteryLevelCharacteristic],
 				},
 				// HID Service: keyboard report map, input/output reports, boot protocol, and control point.
 				{
@@ -522,19 +576,19 @@ class HIDKeyboardServer {
 						{
 							// HID Information: HID version, country code, and flags.
 							uuid: "2a4a",
-							properties: GATTServer.properties.read,
+							properties: GATTServer.properties.readEncrypted,
 							value: Uint8Array.of(0x11, 0x01, 0x00, 0x03),
 						},
 						{
 							// Report Map: HID descriptor that defines the keyboard report layout.
 							uuid: "2a4b",
-							properties: GATTServer.properties.read,
+							properties: GATTServer.properties.readEncrypted,
 							value: keyboardReportMap,
 						},
 						{
 							// HID Control Point: host suspend/resume signal.
 							uuid: "2a4c",
-							properties: GATTServer.properties.writeWithOutResponse,
+							properties: GATTServer.properties.writeWithOutResponse | GATTServer.properties.writeEncrypted,
 							onWrite() {
 								// HID Control Point: host may suspend/resume the device. This example keeps no power state.
 							},
@@ -542,7 +596,10 @@ class HIDKeyboardServer {
 						{
 							// Protocol Mode: switches between report protocol and boot protocol.
 							uuid: "2a4e",
-							properties: GATTServer.properties.read | GATTServer.properties.writeWithOutResponse,
+							properties:
+								GATTServer.properties.readEncrypted |
+								GATTServer.properties.writeWithOutResponse |
+								GATTServer.properties.writeEncrypted,
 							onRead() {
 								return keyboard.#protocolMode;
 							},
@@ -555,7 +612,10 @@ class HIDKeyboardServer {
 						{
 							// Keyboard Output Report: receives LED state such as Caps Lock from the host.
 							uuid: "2a4d",
-							properties: GATTServer.properties.read | GATTServer.properties.writeWithOutResponse,
+							properties:
+								GATTServer.properties.readEncrypted |
+								GATTServer.properties.writeWithOutResponse |
+								GATTServer.properties.writeEncrypted,
 							onRead() {
 								return keyboard.#outputReport;
 							},
@@ -575,7 +635,10 @@ class HIDKeyboardServer {
 						{
 							// Boot Keyboard Output Report: boot-protocol LED state from the host.
 							uuid: "2a32",
-							properties: GATTServer.properties.read | GATTServer.properties.writeWithOutResponse,
+							properties:
+								GATTServer.properties.readEncrypted |
+								GATTServer.properties.writeWithOutResponse |
+								GATTServer.properties.writeEncrypted,
 							onRead() {
 								return keyboard.#outputReport;
 							},
@@ -602,6 +665,9 @@ class HIDKeyboardServer {
 			},
 			onDisconnect(connection: KeyboardConnection) {
 				trace("[moddablue/hid] disconnected\n");
+				if (keyboard.#passkeyConnection === connection) {
+					keyboard.#passkeyConnection = undefined;
+				}
 				keyboard.#clearReleaseTimer(connection);
 				keyboard.#connections = keyboard.#connections.filter((item) => item !== connection);
 				if (!keyboard.hasSubscribedHost()) {
@@ -612,8 +678,20 @@ class HIDKeyboardServer {
 				}
 				keyboard.#emitConnectionChanged();
 			},
+			onPasskey(connection: KeyboardConnection, action) {
+				trace(`[moddablue/hid] passkey action=${action}\n`);
+				if (action !== "input") {
+					trace(`[moddablue/hid] unsupported passkey action=${action}\n`);
+					return;
+				}
+				keyboard.#passkeyConnection = connection;
+				keyboard.onPasskeyRequested?.();
+			},
 			onSecured(_connection, state) {
-				trace(`[moddablue/hid] secured encrypted=${state.encrypted} bonded=${state.bonded}\n`);
+				keyboard.#passkeyConnection = undefined;
+				trace(
+					`[moddablue/hid] secured encrypted=${state.encrypted} authenticated=${state.authenticated} bonded=${state.bonded} keySize=${state.keySize}\n`,
+				);
 			},
 			onWarning(message) {
 				trace(`[moddablue/hid] BLE warning: ${message}\n`);
@@ -626,18 +704,20 @@ class HIDKeyboardServer {
 		const server = this.#server;
 		if (!server) return false;
 
-		server.startAdvertising(
-			{
-				// Keep the primary packet small and put the variable-length name in the scan response.
-				flags: AD_FLAG_GENERAL_DISCOVERABLE | AD_FLAG_BLE_ONLY,
-				services: ["1812"],
-				[AD_TYPE_APPEARANCE]: KEYBOARD_APPEARANCE,
-			},
-			{
-				name: this.#deviceName,
-			},
-		);
+		const advertisement = {
+			flags: AD_FLAG_GENERAL_DISCOVERABLE | AD_FLAG_BLE_ONLY,
+			services: ["1812"],
+			[AD_TYPE_APPEARANCE]: KEYBOARD_APPEARANCE,
+			...(ArrayBuffer.fromString(this.#deviceName).byteLength <= 18 ? { name: this.#deviceName } : {}),
+		};
+		const scanResponse =
+			ArrayBuffer.fromString(this.#deviceName).byteLength > 18 ? { name: this.#deviceName } : undefined;
+		if (scanResponse) server.startAdvertising(advertisement, scanResponse);
+		else server.startAdvertising(advertisement);
 		this.#advertising = true;
+		trace(
+			`[moddablue/hid] advertising name="${this.#deviceName}" nameLocation=${scanResponse ? "scan-response" : "primary"}\n`,
+		);
 		return true;
 	}
 
@@ -769,12 +849,33 @@ class HIDKeyboardServer {
 		if (!Number.isInteger(level) || level < 0 || level > 100) {
 			throw new RangeError("Battery level must be an integer from 0 to 100.");
 		}
+		if (this.#batteryLevel === level) return;
 		this.#batteryLevel = level;
+		const characteristic = this.#batteryLevelCharacteristic;
+		if (!characteristic) return;
+		const value = Uint8Array.of(level);
+		for (const connection of this.#connections) {
+			if (!connection.batterySubscribed) continue;
+			this.#notify(connection, characteristic, value.buffer);
+		}
+	}
+
+	submitPasskey(passkey: number): boolean {
+		if (!Number.isInteger(passkey) || passkey < 0 || passkey > 999999) {
+			throw new RangeError("Passkey must be an integer from 000000 through 999999.");
+		}
+		const connection = this.#passkeyConnection;
+		if (!connection) return false;
+		this.#passkeyConnection = undefined;
+		connection.replyToPasskey("input", passkey);
+		trace("[moddablue/hid] passkey submitted\n");
+		return true;
 	}
 
 	close(): void {
 		this.#advertisingRequested = false;
 		this.#advertising = false;
+		this.#passkeyConnection = undefined;
 		this.#clearTextQueue(false);
 		for (const connection of this.#connections) {
 			this.#clearReleaseTimer(connection);
