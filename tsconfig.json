@@ -1,5 +1,5 @@
 {
-	"include": ["examples/**/*.js", "examples/**/*.ts", "modules/**/*.js"],
+	"include": ["examples/**/*.js", "examples/**/*.ts", "modules/**/*.js", "modules/**/*.ts"],
 	"compilerOptions": {
 		"incremental": true,
 		"outDir": "dist",
@@ -17,11 +17,15 @@
 		"paths": {
 			"MusicPlayerServiceProvider": ["./examples/ams-media-player/services/MockMusicPlayerService"],
 			"NotificationServiceProvider": ["./examples/ancs-notifications/services/MockNotificationService"],
+			"HIDKeyboardService": ["./examples/hid-keyboard/services/HIDKeyboardService"],
+			"HIDKeyboardServiceProvider": ["./examples/hid-keyboard/services/MockHIDKeyboardServer"],
+			"MockHIDKeyboardServer": ["./examples/hid-keyboard/services/MockHIDKeyboardServer"],
 			"moddablue/ams/client": ["./modules/ams/AMSClient"],
 			"moddablue/ams/pairing-server": ["./modules/ams/AMSPairingServer"],
 			"moddablue/ancs/client": ["./modules/ancs/ANCSClient"],
 			"moddablue/ancs/pairing-server": ["./modules/ancs/ANCSPairingServer"],
 			"moddablue/ancs/service": ["./modules/ancs/ANCSService"],
+			"moddablue/hid/keyboard-server": ["./modules/hid/HIDKeyboardServer"],
 			"*": [
 				"./examples/ams-media-player/*",
 				"./examples/ams-media-player/components/*",
@@ -31,6 +35,7 @@
 				"./examples/ancs-notifications/services/*",
 				"./modules/ams/*",
 				"./modules/ancs/*",
+				"./modules/hid/*",
 				"./node_modules/@moddable/typings/*",
 				"./node_modules/@moddable/typings/ble/*",
 				"./node_modules/@moddable/typings/web/*"

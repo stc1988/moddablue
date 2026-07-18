@@ -6,8 +6,11 @@
 	"scripts": {
 		"build:sim": "cd examples/ams-media-player && mcconfig -d -m -p sim",
 		"build:ancs:sim": "cd examples/ancs-notifications && mcconfig -d -m -p sim",
+		"build:hid:sim": "cd examples/hid-keyboard && mcconfig -d -m -p sim",
+		"build:hid:esp32": "cd examples/hid-keyboard && mcconfig -d -m -p esp32/moddable_two",
 		"debug:sim": "cd examples/ams-media-player && mcconfig -dl -m -p sim",
 		"debug:ancs:sim": "cd examples/ancs-notifications && mcconfig -dl -m -p sim",
+		"debug:hid:sim": "cd examples/hid-keyboard && mcconfig -dl -m -p sim",
 		"extract-font-chars": "node scripts/extract-font-chars.js",
 		"format": "biome format --write .",
 		"format:check": "biome format .",
@@ -21,7 +24,8 @@
 		"bluetooth",
 		"ble",
 		"ams",
-		"ancs"
+		"ancs",
+		"hid"
 	],
 	"author": "Satoshi Tanaka",
 	"license": "MIT",

@@ -1,0 +1,66 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/examples/manifest_piu.json",
+		"$(MODDABLE)/examples/manifest_typings.json",
+		"$(MODDABLE)/modules/input/keyboard/manifest.json"
+	],
+	"modules": {
+		"*": "./main",
+		"HIDKeyboardService": "./services/HIDKeyboardService"
+	},
+	"config": {
+		"rotation": 90
+	},
+	"preload": ["./main"],
+	"creation": {
+		"stack": 512
+	},
+	"resources": {
+		"*-alpha": [
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16",
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-16",
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-18",
+			"$(MODDABLE)/examples/assets/fonts/Roboto-Regular-18"
+		]
+	},
+	"typescript": {
+		"tsconfig": {
+			"compilerOptions": {
+				"lib": ["es2024", "esnext.disposable"],
+				"target": "ES2024"
+			}
+		}
+	},
+	"platforms": {
+		"sim": {
+			"modules": {
+				"HIDKeyboardServiceProvider": "./services/MockHIDKeyboardServer"
+			}
+		},
+		"mac": {
+			"modules": {
+				"HIDKeyboardServiceProvider": "./services/MockHIDKeyboardServer"
+			}
+		},
+		"lin": {
+			"modules": {
+				"HIDKeyboardServiceProvider": "./services/MockHIDKeyboardServer"
+			}
+		},
+		"win": {
+			"modules": {
+				"HIDKeyboardServiceProvider": "./services/MockHIDKeyboardServer"
+			}
+		},
+		"esp32/*": {
+			"include": ["../../modules/hid/manifest.json"],
+			"modules": {
+				"HIDKeyboardServiceProvider": "./services/BLEHIDKeyboardServerProvider"
+			}
+		},
+		"...": {
+			"error": "The HID keyboard example supports the simulator and ESP32 BLE targets"
+		}
+	}
+}

@@ -12,6 +12,7 @@ with iPhone.
 | --- | --- | --- |
 | [`ams`](modules/ams/) | `moddablue/ams/*` | AMS GATT client and peripheral server for pairing |
 | [`ancs`](modules/ancs/) | `moddablue/ancs/*` | ANCS connection, notification retrieval, and notification actions |
+| [`hid`](modules/hid/) | `moddablue/hid/*` | BLE HID peripheral services, including a keyboard server |
 
 Each module has its own `manifest.json` and can be included from an application's manifest. See the module README files
 for public APIs and include examples.
@@ -22,6 +23,7 @@ for public APIs and include examples.
 | --- | --- | --- | --- |
 | [`ams-media-player`](examples/ams-media-player/) | Apple Media Service (AMS) | simulator / ESP32 | 240x320 Piu media player. The simulator uses a mock service. |
 | [`ancs-notifications`](examples/ancs-notifications/) | Apple Notification Center Service (ANCS) | simulator / ESP32 | 240x320 Piu notification viewer with mock data and dismissal actions. |
+| [`hid-keyboard`](examples/hid-keyboard/) | Human Interface Device (HID) | simulator / ESP32 | 320x240 touch keyboard with a mock service in the simulator and BLE HID on hardware. |
 
 Each example has its own `manifest.json`, includes reusable implementations from `modules/`, and can be built
 independently. See each example's README for hardware requirements, usage, and limitations.
@@ -52,6 +54,19 @@ npm run build:ancs:sim
 ```sh
 cd examples/ancs-notifications
 mcconfig -d -m -p esp32/moddable_two
+```
+
+### HID keyboard on ESP32
+
+```sh
+cd examples/hid-keyboard
+mcconfig -d -m -p esp32/moddable_two
+```
+
+### HID keyboard in the simulator
+
+```sh
+npm run build:hid:sim
 ```
 
 ## Development
