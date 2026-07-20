@@ -1,6 +1,7 @@
 {
 	"include": ["$(MODDABLE)/modules/io/ble/server/manifest.json"],
 	"modules": {
-		"moddablue/hid/keyboard-server": "./HIDKeyboardServer"
+		"moddablue/hid/keyboard-server": "./HIDKeyboardServer",
+		"moddablue/hid/media-control-server": "./HIDMediaControlServer"
 	}
 }

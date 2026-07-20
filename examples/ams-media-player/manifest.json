@@ -53,7 +53,7 @@
 				"characterFiles": "../assets/fonts/MPLUS1-chars.txt"
 			}
 		],
-		"*-alpha": ["./assets/masks/*", "../assets/masks/status-icons-mask"],
+		"*-alpha": ["./assets/masks/*", "../assets/masks/*"],
 		"*": ["$(MODDABLE)/modules/crypt/data/ca170"]
 	},
 	"platforms": {

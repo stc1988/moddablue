@@ -1,7 +1,7 @@
 # HID
 
-The HID module provides reusable Bluetooth Low Energy HID peripheral services. It currently includes a keyboard server
-with Report Protocol and Boot Protocol support.
+The HID module provides reusable Bluetooth Low Energy HID peripheral services. It includes a keyboard server with
+Report Protocol and Boot Protocol support, plus a standalone Consumer Control server for media keys.
 
 ## Include
 
@@ -17,6 +17,12 @@ Import the keyboard server through its stable public name:
 
 ```ts
 import HIDKeyboardServer from "moddablue/hid/keyboard-server";
+```
+
+Import the media-control server separately:
+
+```ts
+import HIDMediaControlServer from "moddablue/hid/media-control-server";
 ```
 
 ## Basic Usage
@@ -115,3 +121,43 @@ and report subscriptions require an encrypted connection. If a host no longer re
 or security change, forget the keyboard in the host Bluetooth settings and pair it again.
 
 Media controls use the HID Consumer Control usage page and are intentionally not part of this keyboard report.
+
+## Media Control
+
+The media-control server is a standalone BLE HID peripheral. It sends 16-bit Consumer Control usages and automatically
+releases each usage after `releaseDelayMs`.
+
+See [`examples/hid-media-control`](../../examples/hid-media-control/) for a complete radial touch remote.
+
+```ts
+import HIDMediaControlServer from "moddablue/hid/media-control-server";
+
+const mediaControl = new HIDMediaControlServer({
+	deviceName: "Desk Remote",
+});
+
+mediaControl.onConnectionChanged = (state) => {
+	trace(`connected=${state.connected} subscribed=${state.subscribed}\n`);
+};
+
+mediaControl.notifyUsage(HIDMediaControlServer.USAGE.PLAY_PAUSE);
+mediaControl.notifyUsage(HIDMediaControlServer.USAGE.VOLUME_UP);
+mediaControl.notifyUsage(HIDMediaControlServer.USAGE.SCAN_NEXT_TRACK);
+```
+
+Use `pressUsage()` and `releaseAll()` when a button should remain held. The predefined `USAGE` values include playback,
+track navigation, recording, mute, and volume controls. Other Consumer Control usages from `0x0000` through `0x03ff`
+can be passed as numbers.
+
+Successful `notifyUsage()` calls include the action name and raw Consumer Control usage in the debug log:
+
+```text
+[moddablue/hid] action=volume-up usage=0x00e9
+```
+
+The media-control server supports the same advertising, connection-state, battery, Device Information, and shutdown
+methods as the keyboard server. It uses encrypted HID reports and bonding with Just Works pairing because a typical
+remote has no display or passkey keyboard.
+
+Keyboard and media-control servers each own a BLE GATT server and must not be instantiated together. A device that
+needs both report types should use a dedicated composite HID server.

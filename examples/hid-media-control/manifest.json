@@ -1,0 +1,71 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/examples/manifest_piu.json",
+		"$(MODDABLE)/examples/manifest_typings.json"
+	],
+	"modules": {
+		"*": "./main",
+		"HIDMediaControlService": "./services/HIDMediaControlService"
+	},
+	"config": {
+		"rotation": 90
+	},
+	"preload": ["./main"],
+	"creation": {
+		"stack": 512
+	},
+	"resources": {
+		"*-alpha": [
+			"../assets/masks/control-circle-mask",
+			"../assets/masks/next-mask",
+			"../assets/masks/pause-mask",
+			"../assets/masks/play-mask",
+			"../assets/masks/previous-mask",
+			"../assets/masks/volume-small-mask",
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-16"
+		]
+	},
+	"typescript": {
+		"tsconfig": {
+			"compilerOptions": {
+				"lib": ["es2024", "esnext.disposable"],
+				"target": "ES2024"
+			}
+		}
+	},
+	"platforms": {
+		"sim": {
+			"modules": {
+				"HIDMediaControlServiceProvider": "./services/MockHIDMediaControlServer"
+			}
+		},
+		"mac": {
+			"modules": {
+				"HIDMediaControlServiceProvider": "./services/MockHIDMediaControlServer"
+			}
+		},
+		"lin": {
+			"modules": {
+				"HIDMediaControlServiceProvider": "./services/MockHIDMediaControlServer"
+			}
+		},
+		"win": {
+			"modules": {
+				"HIDMediaControlServiceProvider": "./services/MockHIDMediaControlServer"
+			}
+		},
+		"esp32/*": {
+			"build": {
+				"SDKCONFIGPATH": "./sdkconfig"
+			},
+			"include": ["../../modules/hid/manifest.json"],
+			"modules": {
+				"HIDMediaControlServiceProvider": "./services/BLEHIDMediaControlServerProvider"
+			}
+		},
+		"...": {
+			"error": "The HID media-control example supports the simulator and ESP32 BLE targets"
+		}
+	}
+}
