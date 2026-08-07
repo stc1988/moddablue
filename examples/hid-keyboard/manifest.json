@@ -12,7 +12,6 @@
 	"config": {
 		"rotation": 90
 	},
-	"preload": ["./main"],
 	"creation": {
 		"stack": 512
 	},

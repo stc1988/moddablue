@@ -38,7 +38,6 @@
 			"./services/ThemeColorExtractor"
 		]
 	},
-	"preload": ["./main"],
 	"resources": {
 		"*-mask": [
 			{

@@ -20,7 +20,3 @@ These instructions apply only to `examples/ancs-notifications/`.
 - The default `ancsAction` must remain `none`.
 - Never perform a notification action unless the application explicitly requests it.
 - Treat `ancsAction=positive` and `ancsAction=negative` as deliberate hardware-test options only.
-
-## Validation
-
-Build this example for a supported ESP32 target after application or manifest changes.

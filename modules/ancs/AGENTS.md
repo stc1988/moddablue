@@ -17,7 +17,3 @@ These instructions apply only to `modules/ancs/`.
 - Keep the peripheral alive while transitioning to the central; closing it can shut down the shared NimBLE host.
 - Preserve the public imports `moddablue/ancs/service`, `moddablue/ancs/client`, and
   `moddablue/ancs/pairing-server`.
-
-## Validation
-
-Build `examples/ancs-notifications` for a supported ESP32 target after ANCS changes.

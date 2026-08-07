@@ -22,7 +22,3 @@ These instructions apply only to `modules/hid/`.
   map.
 - Send a release report after every automatic Consumer Control usage.
 - Character conversion uses the US keyboard layout; document this wherever text helpers are exposed.
-
-## Validation
-
-Build `examples/hid-keyboard` for `esp32/moddable_two` after HID changes.

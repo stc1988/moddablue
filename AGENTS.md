@@ -8,11 +8,14 @@ the closest nested `AGENTS.md`, and keep user-facing usage documentation in READ
 ```text
 modules/                 Reusable BLE protocol modules
 ├─ ams/
-└─ ancs/
+├─ ancs/
+└─ hid/
 examples/                Independently buildable applications
 ├─ assets/               Assets shared by multiple examples
 ├─ ams-media-player/
-└─ ancs-notifications/
+├─ ancs-notifications/
+├─ hid-keyboard/
+└─ hid-media-control/
 ```
 
 Each module exposes a `manifest.json` that applications include. Each example has its own README and `manifest.json` and
@@ -24,11 +27,14 @@ Read only the documentation relevant to the task unless a cross-module change re
 
 - AMS protocol, GATT, or pairing work: `modules/ams/README.md` and `modules/ams/AGENTS.md`
 - ANCS protocol, notification, or pairing work: `modules/ancs/README.md` and `modules/ancs/AGENTS.md`
+- HID keyboard or media-control work: `modules/hid/README.md` and `modules/hid/AGENTS.md`
 - AMS media-player UI or adapter work: `examples/ams-media-player/README.md` and its nested `AGENTS.md`
 - ANCS example application work: `examples/ancs-notifications/README.md`
+- HID keyboard example work: `examples/hid-keyboard/README.md`
+- HID media-control example work: `examples/hid-media-control/README.md` and its nested `AGENTS.md`
 
-Do not load another protocol's detailed documentation merely because it exists in the repository. Consult both module
-guides only when changing shared BLE abstractions, repository structure, or cross-module conventions.
+Do not load another protocol's detailed documentation merely because it exists in the repository. Consult the relevant
+module guides together only when changing shared BLE abstractions, repository structure, or cross-module conventions.
 
 ## Repository-Wide Rules
 
@@ -47,7 +53,3 @@ guides only when changing shared BLE abstractions, repository structure, or cros
 
 - Run `npm run check` before handing work back.
 - Run `npm run typecheck` and report any pre-existing typing gaps separately from new errors.
-- For simulator validation, run `npm run build:sim -- -t build`.
-- For hardware-module changes, build the affected example for a supported ESP32 target.
-- Use `npm run debug:sim` for simulator debugging.
-- Do not use `mcrun` unless a later task explicitly changes the workflow.

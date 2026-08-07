@@ -23,7 +23,3 @@ These instructions apply only to `modules/ams/`.
 - `$(MODDABLE)/examples/network/ble/ios-media-sync/main.js`
 - `$(MODDABLE)/examples/network/ble/ios-media-sync/manifest.json`
 - `$(MODDABLE)/modules/network/ble/ams-client/amsclient.js`
-
-## Validation
-
-Build `examples/ams-media-player` for a supported ESP32 target after AMS changes.

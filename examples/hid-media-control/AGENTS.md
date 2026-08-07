@@ -16,8 +16,3 @@ These instructions apply only to `examples/hid-media-control/`.
 - Preserve visible pairing, securing, connected, sent, and failure feedback.
 - Keep the UI usable on a 320x240 display with one touch point.
 - Do not instantiate keyboard and media-control GATT servers together.
-
-## Validation
-
-- Build the simulator with `npm run build:hid-media:sim -- -t build`.
-- Build `esp32/moddable_two` with `npm run build:hid-media:esp32 -- -t build`.
