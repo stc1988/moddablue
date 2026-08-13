@@ -1,7 +1,8 @@
 # HID
 
 The HID module provides reusable Bluetooth Low Energy HID peripheral services. It includes a keyboard server with
-Report Protocol and Boot Protocol support, plus a standalone Consumer Control server for media keys.
+Report Protocol and Boot Protocol support, a standalone Consumer Control server for media keys, and a Codex controller
+compatible with Codex Micro devices, based on the Vibe Watch reference implementation.
 
 ## Include
 
@@ -23,6 +24,12 @@ Import the media-control server separately:
 
 ```ts
 import HIDMediaControlServer from "moddablue/hid/media-control-server";
+```
+
+Import the Codex controller server separately:
+
+```ts
+import HIDCodexControllerServer from "moddablue/hid/codex-controller-server";
 ```
 
 ## Basic Usage
@@ -161,3 +168,30 @@ remote has no display or passkey keyboard.
 
 Keyboard and media-control servers each own a BLE GATT server and must not be instantiated together. A device that
 needs both report types should use a dedicated composite HID server.
+
+## Codex Controller
+
+`HIDCodexControllerServer` is a composite HID peripheral that implements the Codex Micro-compatible transport expected
+by the Codex desktop app. The implementation is based on the Vibe Watch reference. This is a product-specific protocol
+carried over standard HID over GATT; it is not a generic BLE controller protocol.
+
+See [Codex Controller Protocol](./CODEX_CONTROLLER_PROTOCOL.md) for the device identity, GATT report layout, Vendor
+Report ID 6 framing, JSON messages, command mappings, notifications, and request/response payloads.
+
+```ts
+import HIDCodexControllerServer from "moddablue/hid/codex-controller-server";
+
+const codex = new HIDCodexControllerServer();
+codex.onAgentStatus = (agents) => trace(`received ${agents.length} agent states\n`);
+codex.onFocusedApp = (name) => trace(`focused app=${name}\n`);
+
+codex.sendAgent(0, true);
+codex.sendAgent(0, false);
+codex.sendAction(1, true);
+codex.sendAction(1, false);
+```
+
+Agent indices 0 through 5 map to `AG00` through `AG05`. Action indices map to `ACTnn`; `sendMicrophone()` sends the
+paired `ACT10` and `ACT11` events. Sending returns `false` until Codex subscribes to the encrypted vendor input report.
+The default device identity and PnP values retain those observed in the Vibe Watch reference for Codex Micro
+compatibility.

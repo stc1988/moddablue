@@ -1,0 +1,65 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/examples/manifest_piu.json",
+		"$(MODDABLE)/examples/manifest_typings.json"
+	],
+	"modules": {
+		"*": "./main",
+		"CodexControllerService": "./services/CodexControllerService"
+	},
+	"config": {
+		"rotation": 90
+	},
+	"creation": {
+		"stack": 512
+	},
+	"resources": {
+		"*-alpha": [
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16",
+			"$(MODDABLE)/examples/assets/fonts/OpenSans-Semibold-16"
+		]
+	},
+	"typescript": {
+		"tsconfig": {
+			"compilerOptions": {
+				"lib": ["es2024", "esnext.disposable"],
+				"target": "ES2024"
+			}
+		}
+	},
+	"platforms": {
+		"sim": {
+			"modules": {
+				"CodexControllerServiceProvider": "./services/MockCodexControllerServer"
+			}
+		},
+		"mac": {
+			"modules": {
+				"CodexControllerServiceProvider": "./services/MockCodexControllerServer"
+			}
+		},
+		"lin": {
+			"modules": {
+				"CodexControllerServiceProvider": "./services/MockCodexControllerServer"
+			}
+		},
+		"win": {
+			"modules": {
+				"CodexControllerServiceProvider": "./services/MockCodexControllerServer"
+			}
+		},
+		"esp32/*": {
+			"build": {
+				"SDKCONFIGPATH": "./sdkconfig"
+			},
+			"include": ["../../modules/hid/manifest.json"],
+			"modules": {
+				"CodexControllerServiceProvider": "./services/BLECodexControllerServerProvider"
+			}
+		},
+		"...": {
+			"error": "The Codex controller example supports the simulator and ESP32 BLE targets"
+		}
+	}
+}

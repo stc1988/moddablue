@@ -12,7 +12,7 @@ with iPhone.
 | --- | --- | --- |
 | [`ams`](modules/ams/) | `moddablue/ams/*` | AMS GATT client and peripheral server for pairing |
 | [`ancs`](modules/ancs/) | `moddablue/ancs/*` | ANCS connection, notification retrieval, and notification actions |
-| [`hid`](modules/hid/) | `moddablue/hid/*` | BLE HID keyboard and Consumer Control peripheral servers |
+| [`hid`](modules/hid/) | `moddablue/hid/*` | BLE HID keyboard, Consumer Control, and Codex peripheral servers |
 
 Each module has its own `manifest.json` and can be included from an application's manifest. See the module README files
 for public APIs and include examples.
@@ -25,6 +25,7 @@ for public APIs and include examples.
 | [`ancs-notifications`](examples/ancs-notifications/) | Apple Notification Center Service (ANCS) | simulator / ESP32 | 240x320 Piu notification viewer with mock data and dismissal actions. |
 | [`hid-keyboard`](examples/hid-keyboard/) | Human Interface Device (HID) | simulator / ESP32 | 320x240 touch keyboard with a mock service in the simulator and BLE HID on hardware. |
 | [`hid-media-control`](examples/hid-media-control/) | Human Interface Device (HID) | simulator / ESP32 | 320x240 radial touch remote for playback, track, and volume controls. |
+| [`codex-controller`](examples/codex-controller/) | Human Interface Device (HID) | simulator / ESP32 | 320x240 Codex task, action, and push-to-talk controller using ECMA-419 BLE. |
 
 Each example has its own `manifest.json`, includes reusable implementations from `modules/`, and can be built
 independently. See each example's README for hardware requirements, usage, and limitations.
@@ -80,6 +81,13 @@ For an ESP32 build:
 
 ```sh
 npm run build:hid-media:esp32
+```
+
+### Codex controller
+
+```sh
+npm run build:codex:sim
+npm run build:codex:esp32
 ```
 
 ## Development
