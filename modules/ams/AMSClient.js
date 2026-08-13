@@ -120,15 +120,14 @@ class AMSClient {
 				immediate: true,
 			},
 			onReady() {
-				trace(`[ams/client] connected ${address}\n`);
-				client.delegate?.onAMSConnected?.(address);
+				trace(`[ams/client] transport ready ${address}\n`);
 			},
 			onSecured(state) {
 				trace(
 					`[ams/client] secured encrypted=${state.encrypted} authenticated=${state.authenticated} bonded=${state.bonded}\n`,
 				);
 				client.#readDeviceName(this);
-				client.#discoverAMS(this);
+				client.#discoverAMS(this, address);
 			},
 			onReadable(count) {
 				while (count--) {
@@ -202,7 +201,7 @@ class AMSClient {
 		});
 	}
 
-	#discoverAMS(gatt) {
+	#discoverAMS(gatt, address) {
 		gatt.getPrimaryServices([AMS_SERVICE_UUID], (serviceError, services) => {
 			if (serviceError || services.length === 0) {
 				trace(`[ams/client] AMS service not found: ${serviceError ?? "empty"}\n`);
@@ -222,12 +221,12 @@ class AMSClient {
 					if (definition) this.#amsCharacteristics[definition.field] = characteristic;
 				}
 
-				this.#subscribeAMS(gatt);
+				this.#subscribeAMS(gatt, address);
 			});
 		});
 	}
 
-	#subscribeAMS(gatt) {
+	#subscribeAMS(gatt, address) {
 		const missing = this.#missingAMSCharacteristics();
 		if (missing) {
 			trace(`[ams/client] required AMS characteristics not found: ${missing}\n`);
@@ -235,7 +234,7 @@ class AMSClient {
 			return;
 		}
 
-		this.#subscribeAMSCharacteristic(gatt, 0);
+		this.#subscribeAMSCharacteristic(gatt, address, 0);
 	}
 
 	#missingAMSCharacteristics() {
@@ -244,9 +243,9 @@ class AMSClient {
 		}
 	}
 
-	#subscribeAMSCharacteristic(gatt, index) {
+	#subscribeAMSCharacteristic(gatt, address, index) {
 		if (index >= SUBSCRIBED_AMS_CHARACTERISTICS.length) {
-			this.#requestEntityUpdates(gatt);
+			this.#requestEntityUpdates(gatt, address);
 			return;
 		}
 
@@ -257,11 +256,11 @@ class AMSClient {
 				this.delegate?.onAMSError?.(error);
 				return;
 			}
-			this.#subscribeAMSCharacteristic(gatt, index + 1);
+			this.#subscribeAMSCharacteristic(gatt, address, index + 1);
 		});
 	}
 
-	#requestEntityUpdates(gatt) {
+	#requestEntityUpdates(gatt, address) {
 		gatt.write(
 			this.#amsCharacteristics.entityUpdate,
 			Uint8Array.of(
@@ -273,9 +272,17 @@ class AMSClient {
 			),
 			{ response: false },
 			(error) => {
-				if (error) trace(`[ams/client] track update request failed: ${error}\n`);
+				if (error) {
+					trace(`[ams/client] track update request failed: ${error}\n`);
+					this.delegate?.onAMSError?.(error);
+					return;
+				}
+				this.#requestPlayerUpdates(gatt, address);
 			},
 		);
+	}
+
+	#requestPlayerUpdates(gatt, address) {
 		gatt.write(
 			this.#amsCharacteristics.entityUpdate,
 			Uint8Array.of(
@@ -286,7 +293,13 @@ class AMSClient {
 			),
 			{ response: false },
 			(error) => {
-				if (error) trace(`[ams/client] player update request failed: ${error}\n`);
+				if (error) {
+					trace(`[ams/client] player update request failed: ${error}\n`);
+					this.delegate?.onAMSError?.(error);
+					return;
+				}
+				trace(`[ams/client] ready ${address}\n`);
+				this.delegate?.onAMSConnected?.(address);
 			},
 		);
 	}

@@ -6,13 +6,16 @@ compatible with Codex Micro devices, based on the Vibe Watch reference implement
 
 ## Include
 
-Include the module manifest from an application:
+Include only the server used by the application:
 
 ```json
 {
-	"include": ["path/to/moddablue/modules/hid/manifest.json"]
+	"include": ["path/to/moddablue/modules/hid/manifest-keyboard-server.json"]
 }
 ```
+
+The focused manifests are `manifest-keyboard-server.json`, `manifest-media-control-server.json`, and
+`manifest-codex-controller-server.json`. The aggregate `manifest.json` includes all three for compatibility.
 
 Import the keyboard server through its stable public name:
 

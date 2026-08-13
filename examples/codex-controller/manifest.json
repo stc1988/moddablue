@@ -53,7 +53,7 @@
 			"build": {
 				"SDKCONFIGPATH": "./sdkconfig"
 			},
-			"include": ["../../modules/hid/manifest.json"],
+			"include": ["../../modules/hid/manifest-codex-controller-server.json"],
 			"modules": {
 				"CodexControllerServiceProvider": "./services/BLECodexControllerServerProvider"
 			}

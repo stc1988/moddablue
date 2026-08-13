@@ -14,8 +14,9 @@ with iPhone.
 | [`ancs`](modules/ancs/) | `moddablue/ancs/*` | ANCS connection, notification retrieval, and notification actions |
 | [`hid`](modules/hid/) | `moddablue/hid/*` | BLE HID keyboard, Consumer Control, and Codex peripheral servers |
 
-Each module has its own `manifest.json` and can be included from an application's manifest. See the module README files
-for public APIs and include examples.
+Each public module has a focused manifest so applications include only the required BLE role and implementation. The
+service-level `manifest.json` files remain as compatibility aggregates. See the module README files for the manifest
+names, public APIs, and include examples.
 
 ## Examples
 

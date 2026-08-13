@@ -1,16 +1,13 @@
 import Controller from "Controller";
 import { log } from "Logger";
 import MusicPlayerServiceProvider from "MusicPlayerServiceProvider";
+import NetworkStatusProvider from "NetworkStatusProvider";
 import MediaPlayerApplication from "View";
 import { createInitialModel } from "model";
-// Moddable provides this embedded module under the bare "net" specifier.
-// biome-ignore lint/style/useNodejsImportProtocol: this is not Node.js net.
-import Net from "net";
 import "piu/MC";
 
 log("main", "boot");
-const ip = Net.get("IP") || undefined;
-const model = createInitialModel({ network: { connected: Boolean(ip), ip } });
+const model = createInitialModel({ network: NetworkStatusProvider.read() });
 const service = new MusicPlayerServiceProvider();
 const controller = new Controller(model, service);
 

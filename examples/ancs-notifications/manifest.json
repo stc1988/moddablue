@@ -34,15 +34,6 @@
 	"config": {
 		"ancsAction": "none"
 	},
-	"creation": {
-		"chunk": {
-			"initial": 32768
-		},
-		"heap": {
-			"initial": 4096
-		},
-		"stack": 512
-	},
 	"typescript": {
 		"tsconfig": {
 			"compilerOptions": {
@@ -73,7 +64,7 @@
 			}
 		},
 		"esp32/*": {
-			"include": ["../../modules/ancs/manifest.json"],
+			"include": ["../../modules/ancs/manifest-service.json"],
 			"modules": {
 				"NotificationServiceProvider": "./services/ANCSNotificationService"
 			}

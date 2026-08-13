@@ -34,6 +34,7 @@
 			"./View",
 			"./components/*",
 			"./services/MusicPlayerService",
+			"./services/NetworkStatus",
 			"./services/ArtworkProvider",
 			"./services/ThemeColorExtractor"
 		]
@@ -58,28 +59,33 @@
 	"platforms": {
 		"sim": {
 			"modules": {
-				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService",
+				"NetworkStatusProvider": "./services/HostNetworkStatus"
 			}
 		},
 		"mac": {
 			"modules": {
-				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService",
+				"NetworkStatusProvider": "./services/HostNetworkStatus"
 			}
 		},
 		"lin": {
 			"modules": {
-				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService",
+				"NetworkStatusProvider": "./services/HostNetworkStatus"
 			}
 		},
 		"win": {
 			"modules": {
-				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService"
+				"MusicPlayerServiceProvider": "./services/MockMusicPlayerService",
+				"NetworkStatusProvider": "./services/HostNetworkStatus"
 			}
 		},
 		"esp32/*": {
 			"include": ["../../modules/ams/manifest.json"],
 			"modules": {
-				"MusicPlayerServiceProvider": "./services/AMSMusicPlayerService"
+				"MusicPlayerServiceProvider": "./services/AMSMusicPlayerService",
+				"NetworkStatusProvider": "./services/WiFiNetworkStatus"
 			}
 		}
 	}

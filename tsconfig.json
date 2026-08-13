@@ -16,6 +16,7 @@
 		"strictNullChecks": false,
 		"paths": {
 			"MusicPlayerServiceProvider": ["./examples/ams-media-player/services/MockMusicPlayerService"],
+			"NetworkStatusProvider": ["./examples/ams-media-player/services/HostNetworkStatus"],
 			"NotificationServiceProvider": ["./examples/ancs-notifications/services/MockNotificationService"],
 			"HIDKeyboardService": ["./examples/hid-keyboard/services/HIDKeyboardService"],
 			"HIDKeyboardServiceProvider": ["./examples/hid-keyboard/services/MockHIDKeyboardServer"],

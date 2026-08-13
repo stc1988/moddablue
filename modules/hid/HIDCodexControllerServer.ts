@@ -693,7 +693,8 @@ class HIDCodexControllerServer {
 	}
 
 	#sendMessage(message: unknown): boolean {
-		const payload = new Uint8Array(ArrayBuffer.fromString(`${JSON.stringify(message)}\r\n`));
+		const json = JSON.stringify(message);
+		const payload = new Uint8Array(ArrayBuffer.fromString(`${json}\r\n`));
 		let queued = false;
 		for (const connection of this.#connections) {
 			const characteristic = connection.vendorInput;
@@ -708,7 +709,10 @@ class HIDCodexControllerServer {
 				queued = true;
 			}
 		}
-		if (queued) this.#startSender();
+		if (queued) {
+			trace("[moddablue/hid/codex] sending RPC message: ", json, "\n");
+			this.#startSender();
+		}
 		return queued;
 	}
 
@@ -733,9 +737,10 @@ class HIDCodexControllerServer {
 			const messageLength = completeJSONMessageLength(receiveBytes);
 			if (!messageLength) return;
 			const messageBytes = receiveBytes.splice(0, messageLength);
+			const message = String.fromArrayBuffer(Uint8Array.from(messageBytes).buffer);
 			let request: unknown;
 			try {
-				request = JSON.parse(String.fromArrayBuffer(Uint8Array.from(messageBytes).buffer));
+				request = JSON.parse(message);
 			} catch {
 				trace("[moddablue/hid/codex] discarded malformed RPC message\n");
 				continue;
@@ -744,6 +749,7 @@ class HIDCodexControllerServer {
 				trace("[moddablue/hid/codex] discarded non-object RPC message\n");
 				continue;
 			}
+			trace("[moddablue/hid/codex] received RPC message: ", message, "\n");
 			this.#dispatch(request as Record<string, unknown>);
 		}
 	}

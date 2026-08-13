@@ -1,0 +1,6 @@
+{
+	"include": ["$(MODDABLE)/modules/io/ble/server/manifest.json"],
+	"modules": {
+		"moddablue/ancs/pairing-server": "./ANCSPairingServer"
+	}
+}

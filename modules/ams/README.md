@@ -5,13 +5,19 @@ with an iPhone. It does not depend on Piu or an application-specific model.
 
 ## Include
 
-Include the module from the application's `manifest.json`:
+Include only the APIs the application uses:
 
 ```json
 {
-	"include": ["../../modules/ams/manifest.json"]
+	"include": [
+		"../../modules/ams/manifest-client.json",
+		"../../modules/ams/manifest-pairing-server.json"
+	]
 }
 ```
+
+`manifest-client.json` exposes `moddablue/ams/client`; `manifest-pairing-server.json` exposes
+`moddablue/ams/pairing-server`. The aggregate `manifest.json` includes both for compatibility.
 
 The manifest exposes these module imports:
 
@@ -23,7 +29,7 @@ import AMSPairingServer from "moddablue/ams/pairing-server";
 See [`examples/ams-media-player/services/AMSMusicPlayerService.ts`](../../examples/ams-media-player/services/AMSMusicPlayerService.ts)
 for a working example of the `AMSClient` delegate callbacks and state format.
 
-The module manifest also includes the Moddable manifests required for BLE central, BLE peripheral, and `TextDecoder`.
+Each focused manifest includes only its required Moddable BLE role. The client manifest also includes `TextDecoder`.
 
 ## Pairing And Connection Sequence
 
@@ -41,7 +47,6 @@ sequenceDiagram
     Pairing-->>App: onPaired(address)
     App->>Client: connect(address)
     Client->>Phone: GATT connection and security
-    Client-->>App: onAMSConnected(address)
     par Read peer identity
         Client->>Phone: Read GAP 1800 / Device Name 2A00
         Phone-->>Client: Device Name
@@ -49,6 +54,7 @@ sequenceDiagram
     and Discover AMS
         Client->>Phone: Discover AMS service and characteristics
         Client->>Phone: Subscribe and select entity updates
+        Client-->>App: onAMSConnected(address)
         Client-->>App: onAMSStateChanged(state)
     end
 ```
@@ -69,7 +75,7 @@ still be partial because the current embedded BLE client API does not expose rep
 
 ## Delegate Callbacks
 
-- `onAMSConnected(address)` — the GATT connection is ready
+- `onAMSConnected(address)` — the secure connection, required discovery, subscriptions, and entity update selection are ready
 - `onAMSDeviceNameChanged(name)` — the GAP Device Name was read successfully
 - `onAMSStateChanged(state)` — player, playback, or track state changed
 - `onAMSError(error)` — connection or required AMS discovery failed

@@ -67,12 +67,42 @@ const ATTRIBUTE_NAMES = Object.freeze([
 
 const decoder = new TextDecoder();
 
+class ResponseAccumulator {
+	#bytes;
+	length = 0;
+
+	constructor(initialCapacity) {
+		this.#bytes = new Uint8Array(initialCapacity);
+	}
+
+	append(fragment) {
+		const required = this.length + fragment.length;
+		if (required > this.#bytes.length) {
+			let capacity = this.#bytes.length;
+			while (capacity < required) capacity *= 2;
+			const bytes = new Uint8Array(capacity);
+			bytes.set(this.#bytes.subarray(0, this.length));
+			this.#bytes = bytes;
+		}
+		this.#bytes.set(fragment, this.length);
+		this.length = required;
+	}
+
+	clear() {
+		this.length = 0;
+	}
+
+	view() {
+		return this.#bytes.subarray(0, this.length);
+	}
+}
+
 class ANCSClient {
 	#gatt;
 	#characteristics = {};
 	#requests = [];
 	#activeRequest;
-	#response = new Uint8Array();
+	#response = new ResponseAccumulator(GATT_CLIENT_MTU);
 	#appNames;
 
 	constructor(delegate, options = {}) {
@@ -216,7 +246,7 @@ class ANCSClient {
 	#requestNext() {
 		if (this.#activeRequest || !this.#requests.length) return;
 		this.#activeRequest = { type: "notification", notification: this.#requests.shift() };
-		this.#response = new Uint8Array();
+		this.#response.clear();
 		const packet = makeNotificationAttributeRequest(this.#activeRequest.notification.uid);
 		this.#gatt.write(this.#characteristics.controlPoint, packet, { response: true }, (error) => {
 			if (!error) return;
@@ -228,13 +258,13 @@ class ANCSClient {
 
 	#handleDataSource(fragment) {
 		if (!this.#activeRequest) return;
-		this.#response = append(this.#response, fragment);
+		this.#response.append(fragment);
 		if (this.#activeRequest.type === "app") this.#handleAppAttributeResponse();
 		else this.#handleNotificationAttributeResponse();
 	}
 
 	#handleNotificationAttributeResponse() {
-		const parsed = parseNotificationAttributeResponse(this.#response, REQUESTED_ATTRIBUTES.length);
+		const parsed = parseNotificationAttributeResponse(this.#response.view(), REQUESTED_ATTRIBUTES.length);
 		if (!parsed) return;
 		const notification = this.#activeRequest.notification;
 		if (parsed.uid !== notification.uid) {
@@ -258,7 +288,7 @@ class ANCSClient {
 		}
 
 		this.#activeRequest = { type: "app", appIdentifier, notification };
-		this.#response = new Uint8Array();
+		this.#response.clear();
 		this.#gatt.write(
 			this.#characteristics.controlPoint,
 			makeAppAttributeRequest(appIdentifier),
@@ -273,7 +303,7 @@ class ANCSClient {
 	}
 
 	#handleAppAttributeResponse() {
-		const parsed = parseAppAttributeResponse(this.#response);
+		const parsed = parseAppAttributeResponse(this.#response.view());
 		if (!parsed) return;
 		const { appIdentifier, notification } = this.#activeRequest;
 		if (parsed.appIdentifier !== appIdentifier) {
@@ -293,7 +323,7 @@ class ANCSClient {
 
 	#completeRequest() {
 		this.#activeRequest = undefined;
-		this.#response = new Uint8Array();
+		this.#response.clear();
 		this.#requestNext();
 	}
 
@@ -302,7 +332,7 @@ class ANCSClient {
 		this.#characteristics = {};
 		this.#requests.length = 0;
 		this.#activeRequest = undefined;
-		this.#response = new Uint8Array();
+		this.#response.clear();
 	}
 }
 
@@ -363,13 +393,6 @@ function parseAppAttributeResponse(bytes) {
 	if (offset + length > bytes.length) return;
 	if (id !== AppAttributeID.displayName) return { appIdentifier, displayName: "" };
 	return { appIdentifier, displayName: decoder.decode(bytes.subarray(offset, offset + length)) };
-}
-
-function append(left, right) {
-	const result = new Uint8Array(left.length + right.length);
-	result.set(left);
-	result.set(right, left.length);
-	return result;
 }
 
 function normalizeControlPointError(error) {
