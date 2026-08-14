@@ -8,6 +8,9 @@ The reusable server uses the ECMA-419 `embedded:io/bluetoothle/peripheral` API. 
 63-byte JSON-RPC framing, device identity, and action names implement Codex Micro compatibility based on behavior
 observed in the Vibe Watch reference firmware.
 
+The UI, simulator mock, and BLE provider share the UI-independent
+`moddablue/codex-controller/service` contract from `modules/codex-controller/`.
+
 ## Simulator
 
 From the repository root:
@@ -31,6 +34,10 @@ mcconfig -d -m -p esp32/moddable_two
 
 Pair `Vibe Watch #1` in the computer's Bluetooth settings, then open Codex. The header changes to `CODEX READY` after
 Codex subscribes to the encrypted vendor input report.
+
+The hardware server logs application-level connection, status, ambient-color, focused-app, and key events by default.
+Set `debug: true` in the `CodexControllerServiceProvider` options in `main.ts` to additionally log complete RPC JSON,
+individual HID report subscriptions, and every completed BLE notification.
 
 If a previously paired host does not reconnect after changing the report map or identity, forget the device in Bluetooth
 settings and pair it again. The simulator validates the UI only; Bluetooth behavior requires an ESP32 build and real

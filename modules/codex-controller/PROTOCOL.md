@@ -26,6 +26,7 @@ device as Codex Micro-compatible:
 | Advertised service | `0x1812` (Human Interface Device) |
 | Manufacturer | `VibeWatch` |
 | Model | `VibeWatch` |
+| Serial number | `0000000000000001` |
 | Firmware revision | `v1.0` |
 | PnP vendor source | `1` (Bluetooth SIG) |
 | Vendor ID | `0x303a` |
@@ -83,7 +84,8 @@ JSON objects; other top-level JSON values are discarded. CR and LF bytes between
 messages end in CRLF for Codex Micro compatibility, following the behavior observed in the Vibe Watch reference.
 
 The largest accepted inbound message is 2048 bytes. An invalid chunk length or oversized message clears the
-connection's receive buffer. Device-to-Codex reports are queued and paced 12 ms apart.
+connection's receive buffer. Device-to-Codex reports are queued and paced 12 ms apart. The debug log distinguishes a
+JSON message being queued (`sending RPC message`) from each BLE notification completing (`notification sent`).
 
 ### JSON envelope
 
@@ -117,9 +119,18 @@ released.
 | `AG00` through `AG05` | Select task slots 1 through 6. |
 | `ACT00` through `ACT99` | Invoke a Codex action. |
 | `ACT10` and `ACT11` | Paired hold-to-talk controls. |
+| `ENC_CLK` | Encoder press. |
+| `ENC_CW` | Encoder clockwise detent. |
+| `ENC_CC` | Encoder counter-clockwise detent. |
 
 The controller example assigns `ACT00` to FAST, `ACT01` to OK, `ACT02` to NG, `ACT03` to PLAN, and `ACT04` to AI.
 These assignments belong to the example application rather than the framing protocol.
+
+Joystick positions use normalized angle and distance values:
+
+```json
+{"m":"v.oai.rad","p":{"a":0.5,"d":1}}
+```
 
 ### Codex-to-device notifications
 
@@ -169,13 +180,17 @@ The current implementation reports `profile_index: 0`, `layer_index: 1`, and `is
 
 ## Part 2: Application API
 
-This part describes the public TypeScript API exported by `moddablue/hid/codex-controller-server`. Applications use
+This part describes the public TypeScript API exported by `moddablue/codex-controller/server`. Applications use
 this API instead of constructing Vendor Report frames or parsing JSON messages directly.
+
+The UI-independent `CodexControllerService` interface, event and state types, `HID_KEY`, and `LIGHTING_EFFECT` are also
+available from `moddablue/codex-controller/service`. The module manifest exposes the BLE server only on ESP32, so
+simulator mocks and other host-independent consumers can share the same contract without loading the hardware server.
 
 ### Create the server
 
 ```ts
-import HIDCodexControllerServer from "moddablue/hid/codex-controller-server";
+import HIDCodexControllerServer from "moddablue/codex-controller/server";
 
 const server = new HIDCodexControllerServer({
 	deviceName: "Vibe Watch #1",
@@ -189,10 +204,12 @@ The constructor accepts the following options:
 | Option | Type | Purpose |
 | --- | --- | --- |
 | `autoAdvertise` | `boolean` | Start advertising when the GATT server becomes ready. Defaults to `true`. |
+| `debug` | `boolean` | Log complete RPC JSON, individual HID subscriptions, and notification completion. Defaults to `false`. |
 | `deviceName` | `string` | BLE device name, limited to 29 UTF-8 bytes. |
 | `batteryLevel` | `number` | Initial battery percentage from `0` through `100`. |
 | `manufacturerName` | `string` | Device Information manufacturer name. |
 | `modelNumber` | `string` | Device Information model number. |
+| `serialNumber` | `string` | Device Information serial number. Defaults to a 16-digit Vibe Watch-compatible value. |
 | `firmwareRevision` | `string` | Device Information firmware revision. |
 | `vendorIdSource` | `1 \| 2` | PnP vendor source: Bluetooth SIG or USB-IF. |
 | `vendorId` | `number` | PnP Vendor ID from `0` through `65535`. |
@@ -227,6 +244,8 @@ encrypted connection subscribes to Vendor Input Report ID 6.
 
 | API | Application-level operation | Wire message |
 | --- | --- | --- |
+| `sendHID(event)` | Send a typed Agent, action, or encoder event. | `v.oai.hid` with `{k, act, ag?}` |
+| `sendRadial(position)` | Send a normalized joystick position. | `v.oai.rad` with `{a, d}` |
 | `sendAgent(index, pressed)` | Select task slot 1 through 6 with index `0` through `5`. | `AG00` through `AG05` |
 | `sendAction(index, pressed)` | Send action number `0` through `99`. | `ACT00` through `ACT99` |
 | `sendMicrophone(pressed)` | Send the paired hold-to-talk controls. | Both `ACT10` and `ACT11` |
@@ -242,7 +261,22 @@ server.sendAction(1, false);
 
 server.sendMicrophone(true);
 server.sendMicrophone(false);
+
+server.sendHID({
+	key: HIDCodexControllerServer.HID_KEY.ENCODER_CLOCKWISE,
+	pressed: true,
+});
+
+server.sendRadial({
+	angle: 0.5,
+	distance: 1,
+});
 ```
+
+`HIDKeyEvent.key` is a literal union of `AG00` through `AG05`, `ACT00` through `ACT99`, and `ENC_CLK`, `ENC_CW`, or
+`ENC_CC`. Its optional `agent` field is typed as `0 | 1 | 2 | 3 | 4 | 5`. `RadialPosition` exposes the named
+`angle` and `distance` properties. The server additionally checks these types and the normalized radial range at
+runtime.
 
 Each method returns `true` when at least one report was queued for a subscribed connection. It returns `false` when
 there was no eligible connection. A `true` result confirms queueing only; it does not confirm that Codex processed the
@@ -260,11 +294,11 @@ message.
 ```ts
 server.onAgentStatus = status => {
 	for (const agent of status)
-		trace(`agent=${agent.id} color=${agent.c}\n`);
+		trace(`agent=${agent.id} color=${agent.color}\n`);
 };
 
 server.onAmbientStatus = status => {
-	trace(`ambient=${status.ambient?.c}\n`);
+	trace(`ambient=${status.ambient?.color}\n`);
 };
 
 server.onFocusedApp = appName => {
@@ -276,8 +310,19 @@ server.onNotifyError = error => {
 };
 ```
 
-Fields other than `id` are optional in the `AgentStatus` callback type. Missing numeric state fields are interpreted by
-the controller example UI as zero.
+The server validates the JSON-RPC parameters and converts the compact wire keys into application-facing names:
+`c` to `color`, `b` to `brightness`, `e` to `effect`, `s` to `speed`, `m` to `magic`, `sk` to
+`syncKeysBacklight`, and `sa` to `syncAmbient`. The `sk` and `sa` integer flags become booleans. Agent IDs are limited
+to `0` through `5`, colors to `0x000000` through `0xffffff`, effects to `0` through `6`, and normalized values to
+`0` through `1`. Invalid agent entries and invalid optional fields are omitted. Malformed method parameters do not
+invoke their callback.
+
+Fields other than `id` are optional in the `AgentStatus` callback type. `AmbientStatus` can contain both `ambient` and
+`keys` lighting objects. Missing numeric state fields are interpreted by the controller example UI as zero.
+
+Use `HIDCodexControllerServer.LIGHTING_EFFECT` instead of numeric effect literals. The map provides `OFF`, `SOLID`,
+`SNAKE`, `RAINBOW`, `BREATH`, `GRADIENT`, and `SHALLOW_BREATH`, mapped to protocol values `0` through `6`. The exported
+`LightingEffect` type is derived from these values, so the runtime map and TypeScript type stay aligned.
 
 ### Battery level
 

@@ -12,11 +12,12 @@ with iPhone.
 | --- | --- | --- |
 | [`ams`](modules/ams/) | `moddablue/ams/*` | AMS GATT client and peripheral server for pairing |
 | [`ancs`](modules/ancs/) | `moddablue/ancs/*` | ANCS connection, notification retrieval, and notification actions |
-| [`hid`](modules/hid/) | `moddablue/hid/*` | BLE HID keyboard, Consumer Control, and Codex peripheral servers |
+| [`hid-keyboard`](modules/hid-keyboard/) | `moddablue/hid-keyboard/server` | BLE HID keyboard peripheral |
+| [`hid-media-control`](modules/hid-media-control/) | `moddablue/hid-media-control/server` | BLE Consumer Control peripheral |
+| [`codex-controller`](modules/codex-controller/) | `moddablue/codex-controller/*` | Codex controller contract and BLE HID peripheral |
 
-Each public module has a focused manifest so applications include only the required BLE role and implementation. The
-service-level `manifest.json` files remain as compatibility aggregates. See the module README files for the manifest
-names, public APIs, and include examples.
+Each module has its own folder, README, and `manifest.json`, matching the corresponding example name. See each module
+README for its public imports and include example.
 
 ## Examples
 

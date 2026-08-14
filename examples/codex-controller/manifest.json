@@ -2,11 +2,11 @@
 	"include": [
 		"$(MODDABLE)/examples/manifest_base.json",
 		"$(MODDABLE)/examples/manifest_piu.json",
-		"$(MODDABLE)/examples/manifest_typings.json"
+		"$(MODDABLE)/examples/manifest_typings.json",
+		"../../modules/codex-controller/manifest.json"
 	],
 	"modules": {
-		"*": "./main",
-		"CodexControllerService": "./services/CodexControllerService"
+		"*": "./main"
 	},
 	"config": {
 		"rotation": 90
@@ -53,7 +53,6 @@
 			"build": {
 				"SDKCONFIGPATH": "./sdkconfig"
 			},
-			"include": ["../../modules/hid/manifest-codex-controller-server.json"],
 			"modules": {
 				"CodexControllerServiceProvider": "./services/BLECodexControllerServerProvider"
 			}

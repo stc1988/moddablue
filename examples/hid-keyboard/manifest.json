@@ -56,7 +56,7 @@
 			"build": {
 				"SDKCONFIGPATH": "./sdkconfig"
 			},
-			"include": ["../../modules/hid/manifest-keyboard-server.json"],
+			"include": ["../../modules/hid-keyboard/manifest.json"],
 			"modules": {
 				"HIDKeyboardServiceProvider": "./services/BLEHIDKeyboardServerProvider"
 			}

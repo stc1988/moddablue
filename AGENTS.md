@@ -9,13 +9,16 @@ the closest nested `AGENTS.md`, and keep user-facing usage documentation in READ
 modules/                 Reusable BLE protocol modules
 ├─ ams/
 ├─ ancs/
-└─ hid/
+├─ hid-keyboard/
+├─ hid-media-control/
+└─ codex-controller/
 examples/                Independently buildable applications
 ├─ assets/               Assets shared by multiple examples
 ├─ ams-media-player/
 ├─ ancs-notifications/
 ├─ hid-keyboard/
-└─ hid-media-control/
+├─ hid-media-control/
+└─ codex-controller/
 ```
 
 Each module exposes a `manifest.json` that applications include. Each example has its own README and `manifest.json` and
@@ -27,7 +30,9 @@ Read only the documentation relevant to the task unless a cross-module change re
 
 - AMS protocol, GATT, or pairing work: `modules/ams/README.md` and `modules/ams/AGENTS.md`
 - ANCS protocol, notification, or pairing work: `modules/ancs/README.md` and `modules/ancs/AGENTS.md`
-- HID keyboard or media-control work: `modules/hid/README.md` and `modules/hid/AGENTS.md`
+- HID keyboard work: `modules/hid-keyboard/README.md` and `modules/hid-keyboard/AGENTS.md`
+- HID media-control work: `modules/hid-media-control/README.md` and `modules/hid-media-control/AGENTS.md`
+- Codex controller work: `modules/codex-controller/README.md` and `modules/codex-controller/AGENTS.md`
 - AMS media-player UI or adapter work: `examples/ams-media-player/README.md` and its nested `AGENTS.md`
 - ANCS example application work: `examples/ancs-notifications/README.md`
 - HID keyboard example work: `examples/hid-keyboard/README.md`

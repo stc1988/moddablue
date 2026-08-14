@@ -1,9 +1,27 @@
 import { GATTServer } from "embedded:io/bluetoothle/peripheral";
+import type {
+	ActionKey,
+	AgentIndex,
+	AgentKey,
+	AgentStatus,
+	AmbientStatus,
+	CodexControllerService,
+	CodexControllerServiceOptions,
+	ConnectionState,
+	EncoderKey,
+	HIDKey,
+	HIDKeyEvent,
+	LightingEffect,
+	LightingStatus,
+	RadialPosition,
+} from "moddablue/codex-controller/service";
+import { HID_KEY, LIGHTING_EFFECT } from "moddablue/codex-controller/service";
 import Timer from "timer";
 
 const DEFAULT_DEVICE_NAME = "Vibe Watch #1";
 const DEFAULT_MANUFACTURER_NAME = "VibeWatch";
 const DEFAULT_MODEL_NUMBER = "VibeWatch";
+const DEFAULT_SERIAL_NUMBER = "0000000000000001";
 const DEFAULT_FIRMWARE_REVISION = "v1.0";
 const DEFAULT_VENDOR_ID_SOURCE = 0x01;
 const DEFAULT_VENDOR_ID = 0x303a;
@@ -30,41 +48,17 @@ type CodexConnection = {
 	receiveBytes?: number[];
 };
 
-type CodexControllerServerOptions = {
+type CodexControllerServerOptions = CodexControllerServiceOptions & {
 	autoAdvertise?: boolean;
-	deviceName?: string;
 	batteryLevel?: number;
 	manufacturerName?: string;
 	modelNumber?: string;
+	serialNumber?: string;
 	firmwareRevision?: string;
 	vendorIdSource?: 1 | 2;
 	vendorId?: number;
 	productId?: number;
 	productVersion?: number;
-};
-
-type ConnectionState = {
-	connected: boolean;
-	connectionCount: number;
-	subscribed: boolean;
-	subscribedReportCount: number;
-};
-
-type AgentStatus = {
-	id: number;
-	c?: number;
-	b?: number;
-	e?: number;
-	s?: number;
-};
-
-type AmbientStatus = {
-	ambient?: {
-		c?: number;
-		b?: number;
-		e?: number;
-		s?: number;
-	};
 };
 
 type OutboundNotification = {
@@ -317,10 +311,112 @@ function completeJSONMessageLength(bytes: number[]): number {
 	return 0;
 }
 
-class HIDCodexControllerServer {
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function isDecimalDigit(character: string): boolean {
+	return character >= "0" && character <= "9";
+}
+
+function isHIDKey(key: string): key is HIDKey {
+	if (key === HID_KEY.ENCODER_PRESS || key === HID_KEY.ENCODER_CLOCKWISE || key === HID_KEY.ENCODER_COUNTERCLOCKWISE) {
+		return true;
+	}
+	if (key.length === 4 && key.startsWith("AG0")) return key[3] >= "0" && key[3] <= "5";
+	return key.length === 5 && key.startsWith("ACT") && isDecimalDigit(key[3]) && isDecimalDigit(key[4]);
+}
+
+function optionalNumber(
+	source: Record<string, unknown>,
+	key: string,
+	minimum: number,
+	maximum: number,
+	integer = false,
+): number | undefined {
+	const value = source[key];
+	if (value === undefined) return undefined;
+	if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) return undefined;
+	if (integer && !Number.isInteger(value)) return undefined;
+	return value;
+}
+
+function toLightingStatus(value: unknown): LightingStatus | undefined {
+	if (!isRecord(value)) return undefined;
+	const color = optionalNumber(value, "c", 0, 0xffffff, true);
+	const brightness = optionalNumber(value, "b", 0, 1);
+	const effect = optionalNumber(value, "e", LIGHTING_EFFECT.OFF, LIGHTING_EFFECT.SHALLOW_BREATH, true) as
+		| LightingEffect
+		| undefined;
+	const speed = optionalNumber(value, "s", 0, 1);
+	const magic = optionalNumber(value, "m", 0, 1);
+	if (
+		color === undefined &&
+		brightness === undefined &&
+		effect === undefined &&
+		speed === undefined &&
+		magic === undefined
+	) {
+		return undefined;
+	}
+	return {
+		...(color === undefined ? {} : { color }),
+		...(brightness === undefined ? {} : { brightness }),
+		...(effect === undefined ? {} : { effect }),
+		...(speed === undefined ? {} : { speed }),
+		...(magic === undefined ? {} : { magic }),
+	};
+}
+
+function toAgentStatus(value: unknown): AgentStatus | undefined {
+	if (!isRecord(value)) return undefined;
+	const id = optionalNumber(value, "id", 0, 5, true);
+	if (id === undefined) return undefined;
+	const lighting = toLightingStatus(value) ?? {};
+	const syncKeysBacklight = optionalNumber(value, "sk", 0, 1, true);
+	const syncAmbient = optionalNumber(value, "sa", 0, 1, true);
+	return {
+		id,
+		...lighting,
+		...(syncKeysBacklight === undefined ? {} : { syncKeysBacklight: syncKeysBacklight === 1 }),
+		...(syncAmbient === undefined ? {} : { syncAmbient: syncAmbient === 1 }),
+	};
+}
+
+function toAgentStatuses(value: unknown): AgentStatus[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const statuses: AgentStatus[] = [];
+	for (const item of value) {
+		const status = toAgentStatus(item);
+		if (status) statuses.push(status);
+	}
+	return statuses;
+}
+
+function toAmbientStatus(value: unknown): AmbientStatus | undefined {
+	if (!isRecord(value)) return undefined;
+	const ambient = toLightingStatus(value.ambient);
+	const keys = toLightingStatus(value.keys);
+	if (!ambient && !keys) return undefined;
+	return {
+		...(ambient ? { ambient } : {}),
+		...(keys ? { keys } : {}),
+	};
+}
+
+function toFocusedApp(value: unknown): string | undefined {
+	if (!isRecord(value) || typeof value.appName !== "string") return undefined;
+	return value.appName;
+}
+
+class HIDCodexControllerServer implements CodexControllerService {
+	static HID_KEY = HID_KEY;
+	static LIGHTING_EFFECT = LIGHTING_EFFECT;
+
 	#connections: CodexConnection[] = [];
 	#advertising = false;
 	#advertisingRequested: boolean;
+	#debug: boolean;
 	#deviceName: string;
 	#server?: GATTServer;
 	#batteryLevel: number;
@@ -338,6 +434,7 @@ class HIDCodexControllerServer {
 		const batteryLevel = options.batteryLevel ?? DEFAULT_BATTERY_LEVEL;
 		const manufacturerName = options.manufacturerName ?? DEFAULT_MANUFACTURER_NAME;
 		const modelNumber = options.modelNumber ?? DEFAULT_MODEL_NUMBER;
+		const serialNumber = options.serialNumber ?? DEFAULT_SERIAL_NUMBER;
 		const firmwareRevision = options.firmwareRevision ?? DEFAULT_FIRMWARE_REVISION;
 		const vendorIdSource = options.vendorIdSource ?? DEFAULT_VENDOR_ID_SOURCE;
 		const vendorId = options.vendorId ?? DEFAULT_VENDOR_ID;
@@ -349,6 +446,10 @@ class HIDCodexControllerServer {
 		}
 		if (ArrayBuffer.fromString(deviceName).byteLength > 29) {
 			throw new RangeError("deviceName must be at most 29 UTF-8 bytes.");
+		}
+		const serialNumberLength = ArrayBuffer.fromString(serialNumber).byteLength;
+		if (serialNumberLength < 1 || serialNumberLength > 32) {
+			throw new RangeError("serialNumber must be from 1 through 32 UTF-8 bytes.");
 		}
 		if (vendorIdSource !== 1 && vendorIdSource !== 2) {
 			throw new RangeError("vendorIdSource must be 1 (Bluetooth SIG) or 2 (USB-IF).");
@@ -364,6 +465,7 @@ class HIDCodexControllerServer {
 		}
 
 		this.#advertisingRequested = options.autoAdvertise ?? true;
+		this.#debug = options.debug ?? false;
 		this.#deviceName = deviceName;
 		this.#batteryLevel = batteryLevel;
 
@@ -412,12 +514,14 @@ class HIDCodexControllerServer {
 			},
 			onSubscribe(connection: CodexConnection) {
 				connection.batterySubscribed = true;
-				trace(`[moddablue/hid/codex] subscribed report=battery peer=${connectionLabel(connection)}\n`);
+				controller.#traceDebug(`[moddablue/hid/codex] subscribed report=battery peer=${connectionLabel(connection)}\n`);
 			},
 			onUnsubscribe(characteristicOrConnection: CodexCharacteristic, connection?: CodexConnection) {
 				const targetConnection = connection ?? (characteristicOrConnection as CodexConnection);
 				targetConnection.batterySubscribed = false;
-				trace(`[moddablue/hid/codex] unsubscribed report=battery peer=${connectionLabel(targetConnection)}\n`);
+				controller.#traceDebug(
+					`[moddablue/hid/codex] unsubscribed report=battery peer=${connectionLabel(targetConnection)}\n`,
+				);
 			},
 			descriptors: [
 				{
@@ -460,6 +564,11 @@ class HIDCodexControllerServer {
 							uuid: "2a24",
 							properties: GATTServer.properties.read,
 							value: ArrayBuffer.fromString(modelNumber),
+						},
+						{
+							uuid: "2a25",
+							properties: GATTServer.properties.read,
+							value: ArrayBuffer.fromString(serialNumber),
 						},
 						{
 							uuid: "2a26",
@@ -517,10 +626,14 @@ class HIDCodexControllerServer {
 								return emptyKeyboardReport;
 							},
 							onSubscribe(connection: CodexConnection) {
-								trace(`[moddablue/hid/codex] subscribed report=keyboard id=1 peer=${connectionLabel(connection)}\n`);
+								controller.#traceDebug(
+									`[moddablue/hid/codex] subscribed report=keyboard id=1 peer=${connectionLabel(connection)}\n`,
+								);
 							},
 							onUnsubscribe(connection: CodexConnection) {
-								trace(`[moddablue/hid/codex] unsubscribed report=keyboard id=1 peer=${connectionLabel(connection)}\n`);
+								controller.#traceDebug(
+									`[moddablue/hid/codex] unsubscribed report=keyboard id=1 peer=${connectionLabel(connection)}\n`,
+								);
 							},
 							descriptors: reportReference(1, 1),
 						},
@@ -531,10 +644,14 @@ class HIDCodexControllerServer {
 								return emptyConsumerReport;
 							},
 							onSubscribe(connection: CodexConnection) {
-								trace(`[moddablue/hid/codex] subscribed report=consumer id=2 peer=${connectionLabel(connection)}\n`);
+								controller.#traceDebug(
+									`[moddablue/hid/codex] subscribed report=consumer id=2 peer=${connectionLabel(connection)}\n`,
+								);
 							},
 							onUnsubscribe(connection: CodexConnection) {
-								trace(`[moddablue/hid/codex] unsubscribed report=consumer id=2 peer=${connectionLabel(connection)}\n`);
+								controller.#traceDebug(
+									`[moddablue/hid/codex] unsubscribed report=consumer id=2 peer=${connectionLabel(connection)}\n`,
+								);
 							},
 							descriptors: reportReference(2, 1),
 						},
@@ -545,10 +662,14 @@ class HIDCodexControllerServer {
 								return emptyPointerReport;
 							},
 							onSubscribe(connection: CodexConnection) {
-								trace(`[moddablue/hid/codex] subscribed report=pointer id=3 peer=${connectionLabel(connection)}\n`);
+								controller.#traceDebug(
+									`[moddablue/hid/codex] subscribed report=pointer id=3 peer=${connectionLabel(connection)}\n`,
+								);
 							},
 							onUnsubscribe(connection: CodexConnection) {
-								trace(`[moddablue/hid/codex] unsubscribed report=pointer id=3 peer=${connectionLabel(connection)}\n`);
+								controller.#traceDebug(
+									`[moddablue/hid/codex] unsubscribed report=pointer id=3 peer=${connectionLabel(connection)}\n`,
+								);
 							},
 							descriptors: reportReference(3, 1),
 						},
@@ -641,14 +762,40 @@ class HIDCodexControllerServer {
 		};
 	}
 
-	sendAgent(index: number, pressed: boolean): boolean {
+	sendHID(event: HIDKeyEvent): boolean {
+		if (!isRecord(event)) throw new TypeError("event must be an object.");
+		const { key, pressed, agent } = event;
+		if (typeof key !== "string" || !isHIDKey(key)) throw new RangeError("event.key is not a supported HID key.");
+		if (typeof pressed !== "boolean") throw new TypeError("event.pressed must be a boolean.");
+		if (agent !== undefined && (!Number.isInteger(agent) || agent < 0 || agent > 5)) {
+			throw new RangeError("event.agent must be an integer from 0 to 5.");
+		}
+		return this.#sendMessage({
+			m: "v.oai.hid",
+			p: { k: key, act: pressed ? 1 : 0, ...(agent === undefined ? {} : { ag: agent }) },
+		});
+	}
+
+	sendRadial(position: RadialPosition): boolean {
+		if (!isRecord(position)) throw new TypeError("position must be an object.");
+		const { angle, distance } = position;
+		if (typeof angle !== "number" || !Number.isFinite(angle) || angle < 0 || angle > 1) {
+			throw new RangeError("position.angle must be a number from 0 to 1.");
+		}
+		if (typeof distance !== "number" || !Number.isFinite(distance) || distance < 0 || distance > 1) {
+			throw new RangeError("position.distance must be a number from 0 to 1.");
+		}
+		return this.#sendMessage({ m: "v.oai.rad", p: { a: angle, d: distance } });
+	}
+
+	sendAgent(index: AgentIndex, pressed: boolean): boolean {
 		if (!Number.isInteger(index) || index < 0 || index > 5) throw new RangeError("index must be from 0 to 5.");
-		return this.#sendKey(`AG${index.toString().padStart(2, "0")}`, pressed);
+		return this.sendHID({ key: `AG0${index}`, pressed, agent: index });
 	}
 
 	sendAction(index: number, pressed: boolean): boolean {
 		if (!Number.isInteger(index) || index < 0 || index > 99) throw new RangeError("index must be from 0 to 99.");
-		return this.#sendKey(`ACT${index.toString().padStart(2, "0")}`, pressed);
+		return this.sendHID({ key: `ACT${index.toString().padStart(2, "0")}` as ActionKey, pressed });
 	}
 
 	sendMicrophone(pressed: boolean): boolean {
@@ -685,13 +832,6 @@ class HIDCodexControllerServer {
 		this.#emitConnectionChanged();
 	}
 
-	#sendKey(key: string, pressed: boolean): boolean {
-		return this.#sendMessage({
-			m: "v.oai.hid",
-			p: { k: key, act: pressed ? 1 : 0 },
-		});
-	}
-
 	#sendMessage(message: unknown): boolean {
 		const json = JSON.stringify(message);
 		const payload = new Uint8Array(ArrayBuffer.fromString(`${json}\r\n`));
@@ -710,7 +850,7 @@ class HIDCodexControllerServer {
 			}
 		}
 		if (queued) {
-			trace("[moddablue/hid/codex] sending RPC message: ", json, "\n");
+			this.#traceRPC("sending", message as Record<string, unknown>, json);
 			this.#startSender();
 		}
 		return queued;
@@ -749,24 +889,32 @@ class HIDCodexControllerServer {
 				trace("[moddablue/hid/codex] discarded non-object RPC message\n");
 				continue;
 			}
-			trace("[moddablue/hid/codex] received RPC message: ", message, "\n");
-			this.#dispatch(request as Record<string, unknown>);
+			const rpc = request as Record<string, unknown>;
+			this.#traceRPC("received", rpc, message);
+			this.#dispatch(rpc);
 		}
 	}
 
 	#dispatch(request: Record<string, unknown>) {
-		const method = (request.method ?? request.m ?? "") as string;
+		const methodValue = request.method ?? request.m;
+		const method = typeof methodValue === "string" ? methodValue : "";
 		const parameters = request.params ?? request.p;
 		switch (method) {
-			case "v.oai.thstatus":
-				if (Array.isArray(parameters)) this.onAgentStatus?.(parameters as AgentStatus[]);
+			case "v.oai.thstatus": {
+				const status = toAgentStatuses(parameters);
+				if (status) this.onAgentStatus?.(status);
 				break;
-			case "v.oai.rgbcfg":
-				this.onAmbientStatus?.((parameters ?? {}) as AmbientStatus);
+			}
+			case "v.oai.rgbcfg": {
+				const status = toAmbientStatus(parameters);
+				if (status) this.onAmbientStatus?.(status);
 				break;
-			case "host.focused_app":
-				this.onFocusedApp?.(((parameters as { appName?: string })?.appName ?? "") as string);
+			}
+			case "host.focused_app": {
+				const appName = toFocusedApp(parameters);
+				if (appName !== undefined) this.onFocusedApp?.(appName);
 				break;
+			}
 		}
 
 		const id = request.id ?? request.i;
@@ -807,12 +955,69 @@ class HIDCodexControllerServer {
 	}
 
 	#notify(connection: CodexConnection, characteristic: CodexCharacteristic, value: ArrayBuffer) {
-		connection.notify(characteristic, value, (error?: Error | number) => {
-			if (!error) return;
-			const notifyError = error instanceof Error ? error : new Error(`BLE notify failed with code ${error}`);
-			trace(`[moddablue/hid/codex] notify failed: ${notifyError.message}\n`);
+		const report = connection.vendorInput === characteristic ? "vendor-input" : "battery";
+		try {
+			connection.notify(characteristic, value, (error?: Error | number) => {
+				if (!error) {
+					this.#traceDebug(`[moddablue/hid/codex] notification sent report=${report} bytes=${value.byteLength}\n`);
+					return;
+				}
+				const notifyError = error instanceof Error ? error : new Error(`BLE notify failed with code ${error}`);
+				trace(`[moddablue/hid/codex] notify failed report=${report}: ${notifyError.message}\n`);
+				this.onNotifyError?.(notifyError);
+			});
+		} catch (error) {
+			const notifyError = error instanceof Error ? error : new Error(String(error));
+			trace(`[moddablue/hid/codex] notify failed report=${report}: ${notifyError.message}\n`);
 			this.onNotifyError?.(notifyError);
-		});
+		}
+	}
+
+	#traceDebug(message: string) {
+		if (this.#debug) trace(message);
+	}
+
+	#traceRPC(direction: "sending" | "received", rpc: Record<string, unknown>, json: string) {
+		if (this.#debug) {
+			trace(`[moddablue/hid/codex] ${direction} RPC message: `, json, "\n");
+			return;
+		}
+
+		const method = (rpc.method ?? rpc.m ?? "unknown") as string;
+		const parameters = rpc.params ?? rpc.p;
+		const id = rpc.id ?? rpc.i;
+		const idLabel = id === undefined ? "" : ` id=${id}`;
+		if (direction === "sending" && method === "v.oai.hid") {
+			const key = (parameters as { k?: string } | undefined)?.k ?? "unknown";
+			const action = (parameters as { act?: number } | undefined)?.act ? "down" : "up";
+			trace(`[moddablue/hid/codex] key=${key} action=${action}\n`);
+			return;
+		}
+		if (direction === "sending" && method === "v.oai.rad") {
+			const angle = (parameters as { a?: number } | undefined)?.a ?? "unknown";
+			const distance = (parameters as { d?: number } | undefined)?.d ?? "unknown";
+			trace(`[moddablue/hid/codex] radial angle=${angle} distance=${distance}\n`);
+			return;
+		}
+		if (direction === "received" && method === "v.oai.thstatus") {
+			const count = Array.isArray(parameters) ? parameters.length : 0;
+			trace(`[moddablue/hid/codex] agent status count=${count}${idLabel}\n`);
+			return;
+		}
+		if (direction === "received" && method === "v.oai.rgbcfg") {
+			const ambient = isRecord(parameters) && isRecord(parameters.ambient) ? parameters.ambient : undefined;
+			const colorValue = ambient?.c;
+			const color = typeof colorValue === "number" ? `#${colorValue.toString(16).padStart(6, "0")}` : "unknown";
+			trace(`[moddablue/hid/codex] ambient color=${color} effect=${ambient?.e ?? "unknown"}${idLabel}\n`);
+			return;
+		}
+		if (direction === "received" && method === "host.focused_app") {
+			const appName = (parameters as { appName?: string } | undefined)?.appName ?? "unknown";
+			trace(`[moddablue/hid/codex] focused app=${appName}${idLabel}\n`);
+			return;
+		}
+		const kind = "result" in rpc ? "response" : "request";
+		trace(`[moddablue/hid/codex] ${direction} ${kind} method=${method}${idLabel}\n`);
 	}
 
 	#emitConnectionChanged() {
@@ -820,5 +1025,22 @@ class HIDCodexControllerServer {
 	}
 }
 
-export type { AgentStatus, AmbientStatus, CodexControllerServerOptions, ConnectionState };
+export type {
+	ActionKey,
+	AgentIndex,
+	AgentKey,
+	AgentStatus,
+	AmbientStatus,
+	CodexControllerServerOptions,
+	CodexControllerService,
+	CodexControllerServiceOptions,
+	ConnectionState,
+	EncoderKey,
+	HIDKey,
+	HIDKeyEvent,
+	LightingEffect,
+	LightingStatus,
+	RadialPosition,
+};
+export { HID_KEY, LIGHTING_EFFECT };
 export default HIDCodexControllerServer;

@@ -1,0 +1,15 @@
+{
+	"modules": {
+		"moddablue/codex-controller/service": "./CodexControllerService",
+		"moddablue/hid/codex-controller-service": "./CodexControllerService"
+	},
+	"platforms": {
+		"esp32/*": {
+			"include": ["$(MODDABLE)/modules/io/ble/server/manifest.json"],
+			"modules": {
+				"moddablue/codex-controller/server": "./HIDCodexControllerServer",
+				"moddablue/hid/codex-controller-server": "./HIDCodexControllerServer"
+			}
+		}
+	}
+}

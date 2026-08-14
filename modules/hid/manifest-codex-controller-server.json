@@ -1,6 +1,0 @@
-{
-	"include": ["$(MODDABLE)/modules/io/ble/server/manifest.json"],
-	"modules": {
-		"moddablue/hid/codex-controller-server": "./HIDCodexControllerServer"
-	}
-}

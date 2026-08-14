@@ -1,10 +1,15 @@
 import type {
+	ActionKey,
+	AgentIndex,
 	AgentStatus,
 	AmbientStatus,
 	CodexControllerService,
 	CodexControllerServiceOptions,
 	ConnectionState,
-} from "CodexControllerService";
+	HIDKeyEvent,
+	RadialPosition,
+} from "moddablue/codex-controller/service";
+import { LIGHTING_EFFECT } from "moddablue/codex-controller/service";
 import Timer from "timer";
 
 const INITIAL_STATE: ConnectionState = Object.freeze({
@@ -34,12 +39,12 @@ class MockCodexControllerServer implements CodexControllerService {
 				this.#setState({ subscribed: true, subscribedReportCount: 1 });
 				this.onFocusedApp?.("Codex");
 				this.onAgentStatus?.([
-					{ id: 0, c: 0x22c55e, b: 1, e: 1, s: 0 },
-					{ id: 1, c: 0x38bdf8, b: 0.85, e: 4, s: 0.6 },
-					{ id: 2, c: 0xf59e0b, b: 0.8, e: 1, s: 0 },
-					{ id: 3, c: 0x8b5cf6, b: 0.75, e: 1, s: 0 },
-					{ id: 4, c: 0xef4444, b: 0.65, e: 1, s: 0 },
-					{ id: 5, c: 0x64748b, b: 0.5, e: 1, s: 0 },
+					{ id: 0, color: 0x22c55e, brightness: 1, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ id: 1, color: 0x38bdf8, brightness: 0.85, effect: LIGHTING_EFFECT.BREATH, speed: 0.6 },
+					{ id: 2, color: 0xf59e0b, brightness: 0.8, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ id: 3, color: 0x8b5cf6, brightness: 0.75, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ id: 4, color: 0xef4444, brightness: 0.65, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ id: 5, color: 0x64748b, brightness: 0.5, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
 				]);
 			}, 500);
 		}, 500);
@@ -49,17 +54,31 @@ class MockCodexControllerServer implements CodexControllerService {
 		return { ...this.#state };
 	}
 
-	sendAgent(index: number, pressed: boolean): boolean {
-		return this.#send(`AG${index.toString().padStart(2, "0")}`, pressed);
+	sendHID(event: HIDKeyEvent): boolean {
+		if (!this.#state.subscribed) return false;
+		trace(
+			`[codex-controller/mock] key=${event.key} action=${event.pressed ? "down" : "up"} agent=${event.agent ?? "none"}\n`,
+		);
+		return true;
+	}
+
+	sendRadial(position: RadialPosition): boolean {
+		if (!this.#state.subscribed) return false;
+		trace(`[codex-controller/mock] radial angle=${position.angle} distance=${position.distance}\n`);
+		return true;
+	}
+
+	sendAgent(index: AgentIndex, pressed: boolean): boolean {
+		return this.sendHID({ key: `AG0${index}`, pressed, agent: index });
 	}
 
 	sendAction(index: number, pressed: boolean): boolean {
-		return this.#send(`ACT${index.toString().padStart(2, "0")}`, pressed);
+		return this.sendHID({ key: `ACT${index.toString().padStart(2, "0")}` as ActionKey, pressed });
 	}
 
 	sendMicrophone(pressed: boolean): boolean {
-		const first = this.#send("ACT10", pressed);
-		const second = this.#send("ACT11", pressed);
+		const first = this.sendAction(10, pressed);
+		const second = this.sendAction(11, pressed);
 		return first || second;
 	}
 
@@ -70,12 +89,6 @@ class MockCodexControllerServer implements CodexControllerService {
 		this.#subscribeTimer = undefined;
 		this.#state = { ...INITIAL_STATE };
 		this.onConnectionChanged?.(this.getConnectionState());
-	}
-
-	#send(key: string, pressed: boolean): boolean {
-		if (!this.#state.subscribed) return false;
-		trace(`[codex-controller/mock] key=${key} action=${pressed ? "down" : "up"}\n`);
-		return true;
 	}
 
 	#setState(update: Partial<ConnectionState>) {

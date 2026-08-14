@@ -1,7 +1,0 @@
-{
-	"include": [
-		"./manifest-keyboard-server.json",
-		"./manifest-media-control-server.json",
-		"./manifest-codex-controller-server.json"
-	]
-}

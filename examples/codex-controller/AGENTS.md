@@ -5,9 +5,10 @@ These instructions apply only to `examples/codex-controller/`.
 ## Responsibilities
 
 - Keep the 320x240 Piu task and action UI in `main.ts`.
-- Keep the application-facing service contract in `services/CodexControllerService.ts`.
+- Use the reusable `moddablue/codex-controller/service` contract from `../../modules/codex-controller/`.
+- Keep only platform provider selection and the simulator mock in `services/`.
 - Use `MockCodexControllerServer` for simulator builds and the reusable ECMA-419 HID module for ESP32 builds.
-- Keep Codex protocol framing and the HID-over-GATT server in `../../modules/hid/`.
+- Keep Codex protocol framing and the HID-over-GATT server in `../../modules/codex-controller/`.
 
 ## Invariants
 

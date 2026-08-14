@@ -58,7 +58,7 @@
 			"build": {
 				"SDKCONFIGPATH": "./sdkconfig"
 			},
-			"include": ["../../modules/hid/manifest-media-control-server.json"],
+			"include": ["../../modules/hid-media-control/manifest.json"],
 			"modules": {
 				"HIDMediaControlServiceProvider": "./services/BLEHIDMediaControlServerProvider"
 			}

@@ -8,7 +8,7 @@ These instructions apply only to `examples/hid-media-control/`.
 - Keep the common application-facing service contract in `services/HIDMediaControlService.ts`.
 - Use `MockHIDMediaControlServer` for simulator builds and the reusable HID module only for ESP32 builds.
 - Keep product-specific button placement and usage mappings in this example.
-- Keep reusable BLE HID and Consumer Control behavior in `../../modules/hid/`.
+- Keep reusable BLE HID and Consumer Control behavior in `../../modules/hid-media-control/`.
 
 ## Invariants
 

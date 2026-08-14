@@ -1,5 +1,10 @@
-import type { AgentStatus, CodexControllerService, ConnectionState } from "CodexControllerService";
 import CodexControllerServiceProvider from "CodexControllerServiceProvider";
+import type {
+	AgentIndex,
+	AgentStatus,
+	CodexControllerService,
+	ConnectionState,
+} from "moddablue/codex-controller/service";
 import type * as MC from "piu/MC";
 import "piu/MC";
 
@@ -44,6 +49,12 @@ const StatusStyle = new Style({
 });
 const ButtonStyle = new Style({
 	color: Colors.text,
+	font: "semibold 16px Open Sans",
+	horizontal: "center",
+	vertical: "middle",
+});
+const LightAgentButtonStyle = new Style({
+	color: [Colors.background, Colors.text],
 	font: "semibold 16px Open Sans",
 	horizontal: "center",
 	vertical: "middle",
@@ -129,8 +140,9 @@ class CodexControllerAppBehavior extends Behavior {
 	}
 
 	onCommandChanged(_application: MC.Application, kind: CommandKind, index: number, pressed: boolean) {
-		if (kind === "agent") this.data.server.sendAgent(index, pressed);
-		else if (kind === "action") this.data.server.sendAction(index, pressed);
+		if (kind === "agent") {
+			if (Number.isInteger(index) && index >= 0 && index <= 5) this.data.server.sendAgent(index as AgentIndex, pressed);
+		} else if (kind === "action") this.data.server.sendAction(index, pressed);
 		else this.data.server.sendMicrophone(pressed);
 	}
 
@@ -158,12 +170,15 @@ class CodexControllerAppBehavior extends Behavior {
 			if (!Number.isInteger(item.id) || item.id < 0 || item.id >= this.data.agents.length) continue;
 			const button = this.data.agents[item.id];
 			if (!button) continue;
-			const color = colorForAgent(item.c ?? 0, item.b ?? 0);
+			const value = item.color ?? 0;
+			const color = colorForAgent(value);
 			button.skin = new Skin({
 				fill: [color, Colors.panelPressed],
 				stroke: Colors.text,
 				borders: { left: 1, right: 1, top: 1, bottom: 1 },
 			});
+			const label = button.first as MC.Label | null;
+			if (label) label.style = styleForAgent(value);
 		}
 	}
 
@@ -176,14 +191,26 @@ class CodexControllerAppBehavior extends Behavior {
 	}
 }
 
-function colorForAgent(color: number, brightness: number) {
-	const level = Math.max(0.16, Math.min(1, brightness));
-	const red = Math.round(((color >> 16) & 0xff) * level);
-	const green = Math.round(((color >> 8) & 0xff) * level);
-	const blue = Math.round((color & 0xff) * level);
+function colorForAgent(color: number) {
+	const red = (color >> 16) & 0xff;
+	const green = (color >> 8) & 0xff;
+	const blue = color & 0xff;
 	return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}${blue
 		.toString(16)
 		.padStart(2, "0")}`;
+}
+
+function styleForAgent(color: number) {
+	const red = linearColorChannel((color >> 16) & 0xff);
+	const green = linearColorChannel((color >> 8) & 0xff);
+	const blue = linearColorChannel(color & 0xff);
+	const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+	return luminance > 0.179 ? LightAgentButtonStyle : ButtonStyle;
+}
+
+function linearColorChannel(value: number) {
+	const channel = value / 255;
+	return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
 }
 
 const CommandButton = Container.template(($: CommandButtonData) => ({

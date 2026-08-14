@@ -4,7 +4,7 @@ A 320x240 touch remote that sends Bluetooth Low Energy HID Consumer Control usag
 play/pause, previous track, next track, volume down, and volume up controls.
 
 The simulator uses a mock service so the complete touch UI and connection states can be tested without BLE hardware.
-ESP32 builds use [`HIDMediaControlServer`](../../modules/hid/) from the reusable HID module.
+ESP32 builds use [`HIDMediaControlServer`](../../modules/hid-media-control/) from the reusable HID module.
 
 ## Simulator
 

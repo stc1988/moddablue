@@ -1,0 +1,101 @@
+type ConnectionState = {
+	connected: boolean;
+	connectionCount: number;
+	subscribed: boolean;
+	subscribedReportCount: number;
+};
+
+const LIGHTING_EFFECT = {
+	OFF: 0,
+	SOLID: 1,
+	SNAKE: 2,
+	RAINBOW: 3,
+	BREATH: 4,
+	GRADIENT: 5,
+	SHALLOW_BREATH: 6,
+} as const;
+Object.freeze(LIGHTING_EFFECT);
+const HID_KEY = {
+	ENCODER_PRESS: "ENC_CLK",
+	ENCODER_CLOCKWISE: "ENC_CW",
+	ENCODER_COUNTERCLOCKWISE: "ENC_CC",
+} as const;
+Object.freeze(HID_KEY);
+
+type DecimalDigit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type AgentIndex = 0 | 1 | 2 | 3 | 4 | 5;
+type AgentKey = `AG0${AgentIndex}`;
+type ActionKey = `ACT${DecimalDigit}${DecimalDigit}`;
+type EncoderKey = (typeof HID_KEY)[keyof typeof HID_KEY];
+type HIDKey = AgentKey | ActionKey | EncoderKey;
+
+type HIDKeyEvent = {
+	key: HIDKey;
+	pressed: boolean;
+	agent?: AgentIndex;
+};
+
+type RadialPosition = {
+	angle: number;
+	distance: number;
+};
+
+type LightingEffect = (typeof LIGHTING_EFFECT)[keyof typeof LIGHTING_EFFECT];
+
+type LightingStatus = {
+	color?: number;
+	brightness?: number;
+	effect?: LightingEffect;
+	speed?: number;
+	magic?: number;
+};
+
+type AgentStatus = LightingStatus & {
+	id: number;
+	syncKeysBacklight?: boolean;
+	syncAmbient?: boolean;
+};
+
+type AmbientStatus = {
+	ambient?: LightingStatus;
+	keys?: LightingStatus;
+};
+
+type CodexControllerServiceOptions = {
+	debug?: boolean;
+	deviceName?: string;
+};
+
+interface CodexControllerService {
+	onConnectionChanged: ((state: ConnectionState) => void) | null;
+	onAgentStatus: ((status: AgentStatus[]) => void) | null;
+	onAmbientStatus: ((status: AmbientStatus) => void) | null;
+	onFocusedApp: ((appName: string) => void) | null;
+	onNotifyError: ((error: Error) => void) | null;
+
+	close(): void;
+	getConnectionState(): ConnectionState;
+	sendHID(event: HIDKeyEvent): boolean;
+	sendRadial(position: RadialPosition): boolean;
+	sendAgent(index: AgentIndex, pressed: boolean): boolean;
+	sendAction(index: number, pressed: boolean): boolean;
+	sendMicrophone(pressed: boolean): boolean;
+}
+
+export type {
+	ActionKey,
+	AgentIndex,
+	AgentKey,
+	AgentStatus,
+	AmbientStatus,
+	CodexControllerService,
+	CodexControllerServiceOptions,
+	ConnectionState,
+	EncoderKey,
+	HIDKey,
+	HIDKeyEvent,
+	LightingEffect,
+	LightingStatus,
+	RadialPosition,
+};
+export { HID_KEY, LIGHTING_EFFECT };
