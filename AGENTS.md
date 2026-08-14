@@ -32,7 +32,8 @@ Read only the documentation relevant to the task unless a cross-module change re
 - ANCS protocol, notification, or pairing work: `modules/ancs/README.md` and `modules/ancs/AGENTS.md`
 - HID keyboard work: `modules/hid-keyboard/README.md` and `modules/hid-keyboard/AGENTS.md`
 - HID media-control work: `modules/hid-media-control/README.md` and `modules/hid-media-control/AGENTS.md`
-- Codex controller work: `modules/codex-controller/README.md` and `modules/codex-controller/AGENTS.md`
+- Codex controller work: `modules/codex-controller/README.md` and, for wire protocol or application API work,
+  `modules/codex-controller/PROTOCOL.md`
 - AMS media-player UI or adapter work: `examples/ams-media-player/README.md` and its nested `AGENTS.md`
 - ANCS example application work: `examples/ancs-notifications/README.md`
 - HID keyboard example work: `examples/hid-keyboard/README.md`

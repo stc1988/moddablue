@@ -21,6 +21,13 @@ import { HID_KEY, LIGHTING_EFFECT } from "moddablue/codex-controller/service";
 The previous `moddablue/hid/codex-controller-service` and `moddablue/hid/codex-controller-server` imports remain
 available as compatibility aliases.
 
+## Development boundaries
+
+- Keep the UI-independent application contract and protocol value types in `CodexControllerService.ts`.
+- Keep ECMA-419 BLE transport, HID framing, and JSON-RPC conversion in `HIDCodexControllerServer.ts`.
+- Keep the public imports `moddablue/codex-controller/service` and `moddablue/codex-controller/server` stable.
+- Keep UI and provider adapters in `examples/codex-controller/`.
+
 ## Codex Micro controls
 
 Codex Micro provides the following physical controls. The 320x240 controller example represents all of them with six
