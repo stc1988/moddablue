@@ -13,6 +13,7 @@ These instructions apply only to `examples/codex-controller/`.
 ## Invariants
 
 - Send a release event for every task or action press, including cancelled touches.
-- Preserve six task buttons, FAST, OK, NG, PLAN, AI, and hold-to-talk controls.
+- Preserve six compact AG00 through AG05 task buttons, ACT06, ACT07, ACT08, ACT09, ACT12, and hold-to-talk controls.
+- Preserve the four-direction joystick and the encoder's CCW, push, CW, short-press, and long-press test feedback.
 - Preserve visible pairing, securing, connected, focused-app, and task-state feedback.
 - Keep the UI usable on a 320x240 display with one touch point.

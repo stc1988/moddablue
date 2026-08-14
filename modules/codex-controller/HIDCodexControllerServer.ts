@@ -9,6 +9,8 @@ import type {
 	CodexControllerServiceOptions,
 	ConnectionState,
 	EncoderKey,
+	EncoderPressKey,
+	EncoderStepKey,
 	HIDKey,
 	HIDKeyEvent,
 	LightingEffect,
@@ -320,11 +322,13 @@ function isDecimalDigit(character: string): boolean {
 }
 
 function isHIDKey(key: string): key is HIDKey {
-	if (key === HID_KEY.ENCODER_PRESS || key === HID_KEY.ENCODER_CLOCKWISE || key === HID_KEY.ENCODER_COUNTERCLOCKWISE) {
-		return true;
-	}
+	if (key === HID_KEY.ENCODER_PRESS) return true;
 	if (key.length === 4 && key.startsWith("AG0")) return key[3] >= "0" && key[3] <= "5";
 	return key.length === 5 && key.startsWith("ACT") && isDecimalDigit(key[3]) && isDecimalDigit(key[4]);
+}
+
+function isEncoderStepKey(key: string): key is EncoderStepKey {
+	return key === HID_KEY.ENCODER_CLOCKWISE || key === HID_KEY.ENCODER_COUNTERCLOCKWISE;
 }
 
 function optionalNumber(
@@ -776,6 +780,13 @@ class HIDCodexControllerServer implements CodexControllerService {
 		});
 	}
 
+	sendEncoderStep(key: EncoderStepKey): boolean {
+		if (typeof key !== "string" || !isEncoderStepKey(key)) {
+			throw new RangeError("key must be ENC_CW or ENC_CC.");
+		}
+		return this.#sendMessage({ m: "v.oai.hid", p: { k: key, act: 2 } });
+	}
+
 	sendRadial(position: RadialPosition): boolean {
 		if (!isRecord(position)) throw new TypeError("position must be an object.");
 		const { angle, distance } = position;
@@ -980,44 +991,39 @@ class HIDCodexControllerServer implements CodexControllerService {
 	#traceRPC(direction: "sending" | "received", rpc: Record<string, unknown>, json: string) {
 		if (this.#debug) {
 			trace(`[moddablue/hid/codex] ${direction} RPC message: `, json, "\n");
-			return;
 		}
 
 		const method = (rpc.method ?? rpc.m ?? "unknown") as string;
 		const parameters = rpc.params ?? rpc.p;
-		const id = rpc.id ?? rpc.i;
-		const idLabel = id === undefined ? "" : ` id=${id}`;
 		if (direction === "sending" && method === "v.oai.hid") {
 			const key = (parameters as { k?: string } | undefined)?.k ?? "unknown";
-			const action = (parameters as { act?: number } | undefined)?.act ? "down" : "up";
-			trace(`[moddablue/hid/codex] key=${key} action=${action}\n`);
+			const action = (parameters as { act?: number } | undefined)?.act;
+			const state = action === 0 ? "released" : action === 1 ? "pressed" : action === 2 ? "step" : `act=${action}`;
+			trace(`[moddablue/hid/codex] input sent key=${key} state=${state}\n`);
 			return;
 		}
 		if (direction === "sending" && method === "v.oai.rad") {
 			const angle = (parameters as { a?: number } | undefined)?.a ?? "unknown";
 			const distance = (parameters as { d?: number } | undefined)?.d ?? "unknown";
-			trace(`[moddablue/hid/codex] radial angle=${angle} distance=${distance}\n`);
+			trace(`[moddablue/hid/codex] radial input sent angle=${angle} distance=${distance}\n`);
 			return;
 		}
 		if (direction === "received" && method === "v.oai.thstatus") {
 			const count = Array.isArray(parameters) ? parameters.length : 0;
-			trace(`[moddablue/hid/codex] agent status count=${count}${idLabel}\n`);
+			trace(`[moddablue/hid/codex] task lighting updated slots=${count}\n`);
 			return;
 		}
 		if (direction === "received" && method === "v.oai.rgbcfg") {
 			const ambient = isRecord(parameters) && isRecord(parameters.ambient) ? parameters.ambient : undefined;
 			const colorValue = ambient?.c;
 			const color = typeof colorValue === "number" ? `#${colorValue.toString(16).padStart(6, "0")}` : "unknown";
-			trace(`[moddablue/hid/codex] ambient color=${color} effect=${ambient?.e ?? "unknown"}${idLabel}\n`);
+			trace(`[moddablue/hid/codex] ambient lighting received color=${color} effect=${ambient?.e ?? "unknown"}\n`);
 			return;
 		}
 		if (direction === "received" && method === "host.focused_app") {
 			const appName = (parameters as { appName?: string } | undefined)?.appName ?? "unknown";
-			trace(`[moddablue/hid/codex] focused app=${appName}${idLabel}\n`);
-			return;
+			trace(`[moddablue/hid/codex] focused app changed name=${appName}\n`);
 		}
-		const kind = "result" in rpc ? "response" : "request";
-		trace(`[moddablue/hid/codex] ${direction} ${kind} method=${method}${idLabel}\n`);
 	}
 
 	#emitConnectionChanged() {
@@ -1036,6 +1042,8 @@ export type {
 	CodexControllerServiceOptions,
 	ConnectionState,
 	EncoderKey,
+	EncoderPressKey,
+	EncoderStepKey,
 	HIDKey,
 	HIDKeyEvent,
 	LightingEffect,

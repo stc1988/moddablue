@@ -27,7 +27,9 @@ type AgentIndex = 0 | 1 | 2 | 3 | 4 | 5;
 type AgentKey = `AG0${AgentIndex}`;
 type ActionKey = `ACT${DecimalDigit}${DecimalDigit}`;
 type EncoderKey = (typeof HID_KEY)[keyof typeof HID_KEY];
-type HIDKey = AgentKey | ActionKey | EncoderKey;
+type EncoderPressKey = typeof HID_KEY.ENCODER_PRESS;
+type EncoderStepKey = typeof HID_KEY.ENCODER_CLOCKWISE | typeof HID_KEY.ENCODER_COUNTERCLOCKWISE;
+type HIDKey = AgentKey | ActionKey | EncoderPressKey;
 
 type HIDKeyEvent = {
 	key: HIDKey;
@@ -76,6 +78,7 @@ interface CodexControllerService {
 	close(): void;
 	getConnectionState(): ConnectionState;
 	sendHID(event: HIDKeyEvent): boolean;
+	sendEncoderStep(key: EncoderStepKey): boolean;
 	sendRadial(position: RadialPosition): boolean;
 	sendAgent(index: AgentIndex, pressed: boolean): boolean;
 	sendAction(index: number, pressed: boolean): boolean;
@@ -92,6 +95,8 @@ export type {
 	CodexControllerServiceOptions,
 	ConnectionState,
 	EncoderKey,
+	EncoderPressKey,
+	EncoderStepKey,
 	HIDKey,
 	HIDKeyEvent,
 	LightingEffect,

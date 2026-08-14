@@ -12,6 +12,10 @@ application:
 - [Part 2: Application API](#part-2-application-api) describes what an application can do with
   `HIDCodexControllerServer`.
 
+See [Codex Micro controls](./README.md#codex-micro-controls) for the physical agent keys, action and microphone buttons,
+four-direction joystick, and pressable rotary knob. The six physical agent keys and their wire values are `AG00`
+through `AG05`.
+
 ## Part 1: Wire protocol
 
 ### Identity, advertising, and security
@@ -107,8 +111,8 @@ Messages fall into three categories:
 
 ### Device-to-Codex key events
 
-All task and action controls send a press and a release as separate messages. `act` is `1` while pressed and `0` when
-released.
+Task, action, and encoder-press controls send a press and a release as separate messages. `act` is `1` while pressed and
+`0` when released. Encoder rotation is a one-shot event with `act: 2`; it does not send a separate release.
 
 ```json
 {"m":"v.oai.hid","p":{"k":"AG00","act":1}}
@@ -123,14 +127,17 @@ released.
 | `ENC_CW` | Encoder clockwise detent. |
 | `ENC_CC` | Encoder counter-clockwise detent. |
 
-The controller example assigns `ACT00` to FAST, `ACT01` to OK, `ACT02` to NG, `ACT03` to PLAN, and `ACT04` to AI.
-These assignments belong to the example application rather than the framing protocol.
+The controller example displays `ACT06`, `ACT07`, `ACT08`, `ACT09`, and `ACT12` from left to right and sends the
+matching action for each button. These assignments belong to the example application rather than the framing protocol.
 
 Joystick positions use normalized angle and distance values:
 
 ```json
 {"m":"v.oai.rad","p":{"a":0.5,"d":1}}
 ```
+
+Angles increase clockwise in screen coordinates: right is `0`, down is `0.25`, left is `0.5`, and up is `0.75`.
+Distance `1` is full travel and distance `0` returns the joystick to center, where angle is ignored.
 
 ### Codex-to-device notifications
 
@@ -204,7 +211,7 @@ The constructor accepts the following options:
 | Option | Type | Purpose |
 | --- | --- | --- |
 | `autoAdvertise` | `boolean` | Start advertising when the GATT server becomes ready. Defaults to `true`. |
-| `debug` | `boolean` | Log complete RPC JSON, individual HID subscriptions, and notification completion. Defaults to `false`. |
+| `debug` | `boolean` | Additionally log complete RPC JSON, individual HID subscriptions, and notification completion. Defaults to `false`. |
 | `deviceName` | `string` | BLE device name, limited to 29 UTF-8 bytes. |
 | `batteryLevel` | `number` | Initial battery percentage from `0` through `100`. |
 | `manufacturerName` | `string` | Device Information manufacturer name. |
@@ -244,7 +251,8 @@ encrypted connection subscribes to Vendor Input Report ID 6.
 
 | API | Application-level operation | Wire message |
 | --- | --- | --- |
-| `sendHID(event)` | Send a typed Agent, action, or encoder event. | `v.oai.hid` with `{k, act, ag?}` |
+| `sendHID(event)` | Send a typed Agent, action, or encoder-press event. | `v.oai.hid` with `act` `0` or `1` |
+| `sendEncoderStep(key)` | Send one clockwise or counter-clockwise encoder detent. | `ENC_CW` or `ENC_CC` with `act: 2` |
 | `sendRadial(position)` | Send a normalized joystick position. | `v.oai.rad` with `{a, d}` |
 | `sendAgent(index, pressed)` | Select task slot 1 through 6 with index `0` through `5`. | `AG00` through `AG05` |
 | `sendAction(index, pressed)` | Send action number `0` through `99`. | `ACT00` through `ACT99` |
@@ -263,9 +271,11 @@ server.sendMicrophone(true);
 server.sendMicrophone(false);
 
 server.sendHID({
-	key: HIDCodexControllerServer.HID_KEY.ENCODER_CLOCKWISE,
+	key: HIDCodexControllerServer.HID_KEY.ENCODER_PRESS,
 	pressed: true,
 });
+
+server.sendEncoderStep(HIDCodexControllerServer.HID_KEY.ENCODER_CLOCKWISE);
 
 server.sendRadial({
 	angle: 0.5,
@@ -273,10 +283,10 @@ server.sendRadial({
 });
 ```
 
-`HIDKeyEvent.key` is a literal union of `AG00` through `AG05`, `ACT00` through `ACT99`, and `ENC_CLK`, `ENC_CW`, or
-`ENC_CC`. Its optional `agent` field is typed as `0 | 1 | 2 | 3 | 4 | 5`. `RadialPosition` exposes the named
-`angle` and `distance` properties. The server additionally checks these types and the normalized radial range at
-runtime.
+`HIDKeyEvent.key` is a literal union of `AG00` through `AG05`, `ACT00` through `ACT99`, and `ENC_CLK`. Its optional
+`agent` field is typed as `0 | 1 | 2 | 3 | 4 | 5`. `EncoderStepKey` is `ENC_CW` or `ENC_CC`. `RadialPosition` exposes
+the named `angle` and `distance` properties. The server additionally checks these types and the normalized radial range
+at runtime.
 
 Each method returns `true` when at least one report was queued for a subscribed connection. It returns `false` when
 there was no eligible connection. A `true` result confirms queueing only; it does not confirm that Codex processed the

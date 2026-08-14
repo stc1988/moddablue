@@ -4,7 +4,9 @@ import type {
 	AgentStatus,
 	CodexControllerService,
 	ConnectionState,
+	EncoderStepKey,
 } from "moddablue/codex-controller/service";
+import { HID_KEY } from "moddablue/codex-controller/service";
 import type * as MC from "piu/MC";
 import "piu/MC";
 
@@ -19,6 +21,8 @@ const Colors = Object.freeze({
 	securing: "#38bdf8",
 	connected: "#22c55e",
 	microphone: "#635bff",
+	joystick: "#0f766e",
+	knob: "#7c3aed",
 });
 
 const BackgroundSkin = new Skin({ fill: Colors.background });
@@ -27,9 +31,24 @@ const ButtonSkin = new Skin({
 	stroke: Colors.border,
 	borders: { left: 1, right: 1, top: 1, bottom: 1 },
 });
+const AgentButtonSkin = new Skin({
+	fill: [Colors.text, Colors.panelPressed],
+	stroke: Colors.border,
+	borders: { left: 1, right: 1, top: 1, bottom: 1 },
+});
 const MicrophoneSkin = new Skin({
 	fill: [Colors.microphone, "#8983ff"],
 	stroke: Colors.securing,
+	borders: { left: 1, right: 1, top: 1, bottom: 1 },
+});
+const JoystickSkin = new Skin({
+	fill: [Colors.panel, Colors.joystick],
+	stroke: Colors.border,
+	borders: { left: 1, right: 1, top: 1, bottom: 1 },
+});
+const KnobSkin = new Skin({
+	fill: [Colors.panel, Colors.knob],
+	stroke: Colors.border,
 	borders: { left: 1, right: 1, top: 1, bottom: 1 },
 });
 const StatusDotSkin = new Skin({
@@ -53,8 +72,26 @@ const ButtonStyle = new Style({
 	horizontal: "center",
 	vertical: "middle",
 });
-const LightAgentButtonStyle = new Style({
+const CompactButtonStyle = new Style({
+	color: Colors.text,
+	font: "semibold 16px Open Sans",
+	horizontal: "center",
+	vertical: "middle",
+});
+const CompactLightAgentButtonStyle = new Style({
 	color: [Colors.background, Colors.text],
+	font: "semibold 16px Open Sans",
+	horizontal: "center",
+	vertical: "middle",
+});
+const ControlTitleStyle = new Style({
+	color: Colors.muted,
+	font: "semibold 16px Open Sans",
+	horizontal: "center",
+	vertical: "middle",
+});
+const FeedbackStyle = new Style({
+	color: Colors.securing,
 	font: "semibold 16px Open Sans",
 	horizontal: "center",
 	vertical: "middle",
@@ -72,6 +109,8 @@ type AppData = {
 	STATUS_DOT?: MC.Content;
 	STATUS_LABEL?: MC.Label;
 	FOCUS_LABEL?: MC.Label;
+	JOY_STATUS?: MC.Label;
+	KNOB_STATUS?: MC.Label;
 };
 
 type CommandKind = "agent" | "action" | "microphone";
@@ -81,7 +120,22 @@ type CommandButtonData = {
 	kind: CommandKind;
 	index: number;
 	title: string;
+	compact?: boolean;
 };
+
+type JoystickButtonData = {
+	appData: AppData;
+	angle: number;
+	direction: string;
+};
+
+type EncoderStepButtonData = {
+	appData: AppData;
+	key: EncoderStepKey;
+	title: string;
+};
+
+const LONG_PRESS_MS = 500;
 
 class CommandButtonBehavior extends Behavior {
 	declare data: CommandButtonData;
@@ -126,6 +180,110 @@ class AgentButtonBehavior extends CommandButtonBehavior {
 	}
 }
 
+class JoystickButtonBehavior extends Behavior {
+	declare data: JoystickButtonData;
+	#pressed = false;
+
+	onCreate(_button: MC.Container, data: JoystickButtonData) {
+		this.data = data;
+	}
+
+	onTouchBegan(button: MC.Container, id: number, x: number, y: number, ticks: number) {
+		button.captureTouch(id as unknown as string, x, y, ticks);
+		button.state = 1;
+		this.#pressed = true;
+		button.bubble("onRadialChanged", this.data.direction, this.data.angle, 1);
+	}
+
+	onTouchMoved(button: MC.Container, _id: number, x: number, y: number) {
+		button.state = button.hit(x, y) ? 1 : 0;
+	}
+
+	onTouchEnded(button: MC.Container) {
+		this.#release(button);
+	}
+
+	onTouchCancelled(button: MC.Container) {
+		this.#release(button);
+	}
+
+	#release(button: MC.Container) {
+		button.state = 0;
+		if (!this.#pressed) return;
+		this.#pressed = false;
+		button.bubble("onRadialChanged", "CENTER", 0, 0);
+	}
+}
+
+class EncoderStepButtonBehavior extends Behavior {
+	declare data: EncoderStepButtonData;
+
+	onCreate(_button: MC.Container, data: EncoderStepButtonData) {
+		this.data = data;
+	}
+
+	onTouchBegan(button: MC.Container, id: number, x: number, y: number, ticks: number) {
+		button.captureTouch(id as unknown as string, x, y, ticks);
+		button.state = 1;
+	}
+
+	onTouchMoved(button: MC.Container, _id: number, x: number, y: number) {
+		button.state = button.hit(x, y) ? 1 : 0;
+	}
+
+	onTouchEnded(button: MC.Container, _id: number, x: number, y: number) {
+		const accepted = Boolean(button.hit(x, y));
+		button.state = 0;
+		if (accepted) button.bubble("onEncoderStep", this.data.title, this.data.key);
+	}
+
+	onTouchCancelled(button: MC.Container) {
+		button.state = 0;
+	}
+}
+
+class EncoderPressButtonBehavior extends Behavior {
+	#pressed = false;
+	#startedAt = 0;
+
+	onTouchBegan(button: MC.Container, id: number, x: number, y: number, ticks: number) {
+		button.captureTouch(id as unknown as string, x, y, ticks);
+		button.state = 1;
+		this.#pressed = true;
+		this.#startedAt = ticks;
+		button.duration = LONG_PRESS_MS;
+		button.time = 0;
+		button.start();
+		button.bubble("onEncoderPressChanged", true);
+		button.bubble("onKnobGesture", "HOLD...");
+	}
+
+	onFinished(button: MC.Container) {
+		if (this.#pressed) button.bubble("onKnobGesture", "LONG");
+	}
+
+	onTouchMoved(button: MC.Container, _id: number, x: number, y: number) {
+		button.state = button.hit(x, y) ? 1 : 0;
+	}
+
+	onTouchEnded(button: MC.Container, _id: number, _x: number, _y: number, ticks: number) {
+		this.#release(button, ticks - this.#startedAt >= LONG_PRESS_MS ? "LONG" : "SHORT");
+	}
+
+	onTouchCancelled(button: MC.Container) {
+		this.#release(button, "CANCEL");
+	}
+
+	#release(button: MC.Container, gesture: string) {
+		button.stop();
+		button.state = 0;
+		if (!this.#pressed) return;
+		this.#pressed = false;
+		button.bubble("onEncoderPressChanged", false);
+		button.bubble("onKnobGesture", gesture);
+	}
+}
+
 class CodexControllerAppBehavior extends Behavior {
 	declare data: AppData;
 
@@ -144,6 +302,24 @@ class CodexControllerAppBehavior extends Behavior {
 			if (Number.isInteger(index) && index >= 0 && index <= 5) this.data.server.sendAgent(index as AgentIndex, pressed);
 		} else if (kind === "action") this.data.server.sendAction(index, pressed);
 		else this.data.server.sendMicrophone(pressed);
+	}
+
+	onRadialChanged(_application: MC.Application, direction: string, angle: number, distance: number) {
+		this.data.server.sendRadial({ angle, distance });
+		if (this.data.JOY_STATUS) this.data.JOY_STATUS.string = direction;
+	}
+
+	onEncoderStep(_application: MC.Application, direction: string, key: EncoderStepKey) {
+		this.data.server.sendEncoderStep(key);
+		if (this.data.KNOB_STATUS) this.data.KNOB_STATUS.string = direction;
+	}
+
+	onEncoderPressChanged(_application: MC.Application, pressed: boolean) {
+		this.data.server.sendHID({ key: HID_KEY.ENCODER_PRESS, pressed });
+	}
+
+	onKnobGesture(_application: MC.Application, gesture: string) {
+		if (this.data.KNOB_STATUS) this.data.KNOB_STATUS.string = gesture;
 	}
 
 	onBLEStateChanged(_application: MC.Application, state: ConnectionState) {
@@ -205,7 +381,7 @@ function styleForAgent(color: number) {
 	const green = linearColorChannel((color >> 8) & 0xff);
 	const blue = linearColorChannel(color & 0xff);
 	const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-	return luminance > 0.179 ? LightAgentButtonStyle : ButtonStyle;
+	return luminance > 0.179 ? CompactLightAgentButtonStyle : CompactButtonStyle;
 }
 
 function linearColorChannel(value: number) {
@@ -215,7 +391,7 @@ function linearColorChannel(value: number) {
 
 const CommandButton = Container.template(($: CommandButtonData) => ({
 	active: true,
-	skin: $.kind === "microphone" ? MicrophoneSkin : ButtonSkin,
+	skin: $.kind === "agent" ? AgentButtonSkin : $.kind === "microphone" ? MicrophoneSkin : ButtonSkin,
 	Behavior: $.kind === "agent" ? AgentButtonBehavior : CommandButtonBehavior,
 	contents: [
 		Label($, {
@@ -223,8 +399,56 @@ const CommandButton = Container.template(($: CommandButtonData) => ({
 			right: 2,
 			top: 0,
 			bottom: 0,
-			style: ButtonStyle,
+			style: $.kind === "agent" ? CompactLightAgentButtonStyle : $.compact ? CompactButtonStyle : ButtonStyle,
 			string: $.title,
+		}),
+	],
+}));
+
+const JoystickButton = Container.template(($: JoystickButtonData) => ({
+	active: true,
+	skin: JoystickSkin,
+	Behavior: JoystickButtonBehavior,
+	contents: [
+		Label($, {
+			left: 0,
+			right: 0,
+			top: 0,
+			bottom: 0,
+			style: CompactButtonStyle,
+			string: $.direction,
+		}),
+	],
+}));
+
+const EncoderStepButton = Container.template(($: EncoderStepButtonData) => ({
+	active: true,
+	skin: KnobSkin,
+	Behavior: EncoderStepButtonBehavior,
+	contents: [
+		Label($, {
+			left: 0,
+			right: 0,
+			top: 0,
+			bottom: 0,
+			style: CompactButtonStyle,
+			string: $.title,
+		}),
+	],
+}));
+
+const EncoderPressButton = Container.template(($: AppData) => ({
+	active: true,
+	skin: KnobSkin,
+	Behavior: EncoderPressButtonBehavior,
+	contents: [
+		Label($, {
+			left: 0,
+			right: 0,
+			top: 0,
+			bottom: 0,
+			style: CompactButtonStyle,
+			string: "PUSH",
 		}),
 	],
 }));
@@ -238,79 +462,124 @@ const ControllerView = Container.template(($: AppData) => ({
 	contents: [
 		Label($, {
 			left: 8,
-			top: 2,
-			width: 170,
+			top: 0,
+			width: 160,
 			height: 26,
 			style: TitleStyle,
 			string: "CODEX CONTROLLER",
 		}),
 		Content($, {
 			anchor: "STATUS_DOT",
-			right: 130,
-			top: 11,
+			right: 108,
+			top: 9,
 			width: 8,
 			height: 8,
 			skin: StatusDotSkin,
 		}),
 		Label($, {
 			anchor: "STATUS_LABEL",
-			right: 8,
-			top: 2,
-			width: 116,
+			right: 4,
+			top: 0,
+			width: 100,
 			height: 26,
 			style: StatusStyle,
 			string: "PAIRING",
 		}),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 0, title: "AGENT 1" },
-			{ left: 4, top: 32, width: 101, height: 39 },
+			{ appData: $, kind: "agent", index: 0, title: "AG00", compact: true },
+			{ left: 4, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 1, title: "AGENT 2" },
-			{ left: 109, top: 32, width: 102, height: 39 },
+			{ appData: $, kind: "agent", index: 1, title: "AG01", compact: true },
+			{ left: 57, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 2, title: "AGENT 3" },
-			{ right: 4, top: 32, width: 101, height: 39 },
+			{ appData: $, kind: "agent", index: 2, title: "AG02", compact: true },
+			{ left: 110, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 3, title: "AGENT 4" },
-			{ left: 4, top: 75, width: 101, height: 39 },
+			{ appData: $, kind: "agent", index: 3, title: "AG03", compact: true },
+			{ left: 163, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 4, title: "AGENT 5" },
-			{ left: 109, top: 75, width: 102, height: 39 },
+			{ appData: $, kind: "agent", index: 4, title: "AG04", compact: true },
+			{ left: 216, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 5, title: "AGENT 6" },
-			{ right: 4, top: 75, width: 101, height: 39 },
+			{ appData: $, kind: "agent", index: 5, title: "AG05", compact: true },
+			{ left: 269, top: 28, width: 47, height: 28 },
 		),
 		Label($, {
 			anchor: "FOCUS_LABEL",
 			left: 4,
 			right: 4,
-			top: 116,
-			height: 21,
+			top: 58,
+			height: 17,
 			style: FocusStyle,
 			string: "FOCUS: --",
 		}),
-		CommandButton(
-			{ appData: $, kind: "action", index: 0, title: "FAST" },
-			{ left: 4, top: 140, width: 60, height: 42 },
+		JoystickButton({ appData: $, angle: 0.75, direction: "U" }, { left: 41, top: 78, width: 30, height: 26 }),
+		JoystickButton({ appData: $, angle: 0.5, direction: "L" }, { left: 7, top: 106, width: 30, height: 30 }),
+		Label($, {
+			anchor: "JOY_STATUS",
+			left: 39,
+			top: 106,
+			width: 34,
+			height: 30,
+			style: ControlTitleStyle,
+			string: "JOY",
+		}),
+		JoystickButton({ appData: $, angle: 0, direction: "R" }, { left: 75, top: 106, width: 30, height: 30 }),
+		JoystickButton({ appData: $, angle: 0.25, direction: "D" }, { left: 41, top: 138, width: 30, height: 26 }),
+		Label($, {
+			left: 114,
+			top: 78,
+			width: 202,
+			height: 18,
+			style: ControlTitleStyle,
+			string: "KNOB",
+		}),
+		EncoderStepButton(
+			{ appData: $, key: HID_KEY.ENCODER_COUNTERCLOCKWISE, title: "CCW" },
+			{ left: 114, top: 98, width: 54, height: 45 },
 		),
-		CommandButton({ appData: $, kind: "action", index: 1, title: "OK" }, { left: 68, top: 140, width: 60, height: 42 }),
+		EncoderPressButton($, { left: 171, top: 98, width: 88, height: 45 }),
+		EncoderStepButton(
+			{ appData: $, key: HID_KEY.ENCODER_CLOCKWISE, title: "CW" },
+			{ left: 262, top: 98, width: 54, height: 45 },
+		),
+		Label($, {
+			anchor: "KNOB_STATUS",
+			left: 114,
+			top: 145,
+			width: 202,
+			height: 19,
+			style: FeedbackStyle,
+			string: "READY",
+		}),
 		CommandButton(
-			{ appData: $, kind: "action", index: 2, title: "NG" },
-			{ left: 132, top: 140, width: 60, height: 42 },
+			{ appData: $, kind: "action", index: 6, title: "ACT06", compact: true },
+			{ left: 4, top: 168, width: 60, height: 31 },
 		),
 		CommandButton(
-			{ appData: $, kind: "action", index: 3, title: "PLAN" },
-			{ left: 196, top: 140, width: 60, height: 42 },
+			{ appData: $, kind: "action", index: 7, title: "ACT07", compact: true },
+			{ left: 68, top: 168, width: 60, height: 31 },
 		),
-		CommandButton({ appData: $, kind: "action", index: 4, title: "AI" }, { right: 4, top: 140, width: 60, height: 42 }),
 		CommandButton(
-			{ appData: $, kind: "microphone", index: 10, title: "HOLD TO TALK" },
-			{ left: 4, right: 4, top: 186, bottom: 4 },
+			{ appData: $, kind: "action", index: 8, title: "ACT08", compact: true },
+			{ left: 132, top: 168, width: 60, height: 31 },
+		),
+		CommandButton(
+			{ appData: $, kind: "action", index: 9, title: "ACT09", compact: true },
+			{ left: 196, top: 168, width: 60, height: 31 },
+		),
+		CommandButton(
+			{ appData: $, kind: "action", index: 12, title: "ACT12", compact: true },
+			{ right: 4, top: 168, width: 60, height: 31 },
+		),
+		CommandButton(
+			{ appData: $, kind: "microphone", index: 10, title: "MIC  ACT10 + ACT11", compact: true },
+			{ left: 4, right: 4, top: 202, bottom: 4 },
 		),
 	],
 }));

@@ -6,6 +6,7 @@ import type {
 	CodexControllerService,
 	CodexControllerServiceOptions,
 	ConnectionState,
+	EncoderStepKey,
 	HIDKeyEvent,
 	RadialPosition,
 } from "moddablue/codex-controller/service";
@@ -59,6 +60,12 @@ class MockCodexControllerServer implements CodexControllerService {
 		trace(
 			`[codex-controller/mock] key=${event.key} action=${event.pressed ? "down" : "up"} agent=${event.agent ?? "none"}\n`,
 		);
+		return true;
+	}
+
+	sendEncoderStep(key: EncoderStepKey): boolean {
+		if (!this.#state.subscribed) return false;
+		trace(`[codex-controller/mock] key=${key} action=step\n`);
 		return true;
 	}
 
