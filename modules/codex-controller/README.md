@@ -21,6 +21,174 @@ import { HID_KEY, LIGHTING_EFFECT } from "moddablue/codex-controller/service";
 The previous `moddablue/hid/codex-controller-service` and `moddablue/hid/codex-controller-server` imports remain
 available as compatibility aliases.
 
+## Application API
+
+Applications use the public TypeScript API exported by `moddablue/codex-controller/server` instead of constructing
+Vendor Report frames or parsing JSON messages directly. See [Protocol](./PROTOCOL.md) for the wire format.
+
+The UI-independent `CodexControllerService` interface, event and state types, `HID_KEY`, and `LIGHTING_EFFECT` are also
+available from `moddablue/codex-controller/service`. The module manifest exposes the BLE server only on ESP32, so
+simulator mocks and other host-independent consumers can share the same contract without loading the hardware server.
+
+### Create the server
+
+```ts
+import HIDCodexControllerServer from "moddablue/codex-controller/server";
+
+const server = new HIDCodexControllerServer({
+	deviceName: "Vibe Watch #1",
+	batteryLevel: 100,
+	autoAdvertise: true,
+});
+```
+
+The constructor accepts the following options:
+
+| Option | Type | Purpose |
+| --- | --- | --- |
+| `autoAdvertise` | `boolean` | Start advertising when the GATT server becomes ready. Defaults to `true`. |
+| `debug` | `boolean` | Additionally log complete RPC JSON, individual HID subscriptions, and notification completion. Defaults to `false`. |
+| `deviceName` | `string` | BLE device name, limited to 29 UTF-8 bytes. |
+| `batteryLevel` | `number` | Initial battery percentage from `0` through `100`. |
+| `manufacturerName` | `string` | Device Information manufacturer name. |
+| `modelNumber` | `string` | Device Information model number. |
+| `serialNumber` | `string` | Device Information serial number. Defaults to a 16-digit Vibe Watch-compatible value. |
+| `firmwareRevision` | `string` | Device Information firmware revision. |
+| `vendorIdSource` | `1 \| 2` | PnP vendor source: Bluetooth SIG or USB-IF. |
+| `vendorId` | `number` | PnP Vendor ID from `0` through `65535`. |
+| `productId` | `number` | PnP Product ID from `0` through `65535`. |
+| `productVersion` | `number` | PnP product version from `0` through `65535`. |
+
+### Advertising and connection state
+
+| API | What the application can do |
+| --- | --- |
+| `startAdvertising()` | Request advertising and return whether it could be started immediately. |
+| `stopAdvertising()` | Stop advertising and disable automatic restart after a disconnect. |
+| `isAdvertising()` | Check whether the server currently considers itself advertising. |
+| `getConnectionState()` | Inspect connection and Vendor Input subscription counts. |
+| `onConnectionChanged` | React to connection, disconnection, and subscription changes. |
+
+`getConnectionState()` and `onConnectionChanged` provide this shape:
+
+```ts
+type ConnectionState = {
+	connected: boolean;
+	connectionCount: number;
+	subscribed: boolean;
+	subscribedReportCount: number;
+};
+```
+
+A BLE connection alone is not enough to send application messages. `subscribed` becomes `true` after at least one
+encrypted connection subscribes to Vendor Input Report ID 6.
+
+### Send commands to Codex
+
+| API | Application-level operation | Wire message |
+| --- | --- | --- |
+| `sendHID(event)` | Send a typed Agent, action, or encoder-press event. | `v.oai.hid` with `act` `0` or `1` |
+| `sendEncoderStep(key)` | Send one clockwise or counter-clockwise encoder detent. | `ENC_CW` or `ENC_CC` with `act: 2` |
+| `sendRadial(position)` | Send a normalized joystick position. | `v.oai.rad` with `{a, d}` |
+| `sendAgent(index, pressed)` | Select task slot 1 through 6 with index `0` through `5`. | `AG00` through `AG05` |
+| `sendAction(index, pressed)` | Send action number `0` through `99`. | `ACT00` through `ACT99` |
+| `sendMicrophone(pressed)` | Send the paired hold-to-talk controls. | Both `ACT10` and `ACT11` |
+
+Pass `true` for a press and `false` for a release:
+
+```ts
+server.sendAgent(0, true);
+server.sendAgent(0, false);
+
+server.sendAction(1, true);
+server.sendAction(1, false);
+
+server.sendMicrophone(true);
+server.sendMicrophone(false);
+
+server.sendHID({
+	key: HIDCodexControllerServer.HID_KEY.ENCODER_PRESS,
+	pressed: true,
+});
+
+server.sendEncoderStep(HIDCodexControllerServer.HID_KEY.ENCODER_CLOCKWISE);
+
+server.sendRadial({
+	angle: 0.5,
+	distance: 1,
+});
+```
+
+`HIDKeyEvent.key` is a literal union of `AG00` through `AG05`, `ACT00` through `ACT99`, and `ENC_CLK`. Its optional
+`agent` field is typed as `0 | 1 | 2 | 3 | 4 | 5`. `EncoderStepKey` is `ENC_CW` or `ENC_CC`. `RadialPosition` exposes
+the named `angle` and `distance` properties. The server additionally checks these types and the normalized radial range
+at runtime.
+
+Each method returns `true` when at least one report was queued for a subscribed connection. It returns `false` when
+there was no eligible connection. A `true` result confirms queueing only; it does not confirm that Codex processed the
+message.
+
+### Receive state from Codex
+
+| Callback | Application-level information | Protocol method |
+| --- | --- | --- |
+| `onAgentStatus` | Task-slot colors, brightness, effect, and speed. | `v.oai.thstatus` |
+| `onAmbientStatus` | Ambient color and effect configuration. | `v.oai.rgbcfg` |
+| `onFocusedApp` | Name of the focused host application. | `host.focused_app` |
+| `onNotifyError` | Error reported while sending a queued BLE notification. | Not a JSON message |
+
+```ts
+server.onAgentStatus = status => {
+	for (const agent of status)
+		trace(`agent=${agent.id} color=${agent.color}\n`);
+};
+
+server.onAmbientStatus = status => {
+	trace(`ambient=${status.ambient?.color}\n`);
+};
+
+server.onFocusedApp = appName => {
+	trace(`focused app=${appName}\n`);
+};
+
+server.onNotifyError = error => {
+	trace(`notify error=${error.message}\n`);
+};
+```
+
+The server validates the JSON-RPC parameters and converts the compact wire keys into application-facing names:
+`c` to `color`, `b` to `brightness`, `e` to `effect`, `s` to `speed`, `m` to `magic`, `sk` to
+`syncKeysBacklight`, and `sa` to `syncAmbient`. The `sk` and `sa` integer flags become booleans. Agent IDs are limited
+to `0` through `5`, colors to `0x000000` through `0xffffff`, effects to `0` through `6`, and normalized values to
+`0` through `1`. Invalid agent entries and invalid optional fields are omitted. Malformed method parameters do not
+invoke their callback.
+
+Fields other than `id` are optional in the `AgentStatus` callback type. `AmbientStatus` can contain both `ambient` and
+`keys` lighting objects. Missing numeric state fields are interpreted by the controller example UI as zero.
+
+Use `HIDCodexControllerServer.LIGHTING_EFFECT` instead of numeric effect literals. The map provides `OFF`, `SOLID`,
+`SNAKE`, `RAINBOW`, `BREATH`, `GRADIENT`, and `SHALLOW_BREATH`, mapped to protocol values `0` through `6`. The exported
+`LightingEffect` type is derived from these values, so the runtime map and TypeScript type stay aligned.
+
+### Battery level
+
+```ts
+server.setBatteryLevel(75);
+const level = server.getBatteryLevel();
+```
+
+`setBatteryLevel()` changes the value returned by the Battery service and notifies encrypted subscribers. It also
+changes the `battery` field returned by a subsequent `device.status` request. The level must be an integer from `0`
+through `100`.
+
+### Close the server
+
+```ts
+server.close();
+```
+
+`close()` stops advertising and outbound pacing, clears queued reports and connections, and closes the GATT server.
+
 ## Development boundaries
 
 - Keep the UI-independent application contract and protocol value types in `CodexControllerService.ts`.
@@ -70,4 +238,4 @@ then sends distance `0` when released. The knob test area emits one `act: 2` eve
 control sends the usual `ENC_CLK` press and release events and displays `SHORT` or `LONG` locally using a 500 ms
 threshold.
 
-See [Protocol](./PROTOCOL.md) for the wire format and complete application API.
+See [Protocol](./PROTOCOL.md) for the wire format.
