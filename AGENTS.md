@@ -55,6 +55,20 @@ module guides together only when changing shared BLE abstractions, repository st
 - Prefer descriptive example directory names such as `<service>-<purpose>`.
 - Do not introduce a shared abstraction until at least two modules need the same stable behavior.
 
+## Documentation Synchronization
+
+- Treat the current implementation, exported types, and manifest as the source of truth when resolving existing
+  documentation drift. Do not preserve a documented behavior that the implementation does not provide.
+- Update a module's README in the same change whenever its public imports, options, defaults, validation, callbacks,
+  return values, or other application-visible behavior changes.
+- Update the relevant protocol document in the same change whenever its identity, security, GATT layout, framing,
+  limits, timing, message fields, validation, or responses change.
+- Update both the README and protocol document when a change affects both the application API and the wire behavior.
+- Keep planned or hypothetical behavior out of normative documentation. Clearly label external observations and
+  compatibility notes so they are not mistaken for behavior implemented by this repository.
+- Before handing work back, compare the affected implementation and documentation together and confirm that examples,
+  constants, ranges, defaults, and field names still agree.
+
 ## Validation
 
 - Run `npm run check` before handing work back.

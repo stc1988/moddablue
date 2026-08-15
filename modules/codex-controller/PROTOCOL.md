@@ -5,8 +5,8 @@ implementation was derived from the Vibe Watch reference firmware. It uses stand
 its Vendor Report ID 6 framing and JSON messages are specific to Codex Micro-compatible devices rather than a generic
 BLE controller protocol.
 
-This document defines the BLE identity, GATT reports, framing, and JSON messages exchanged on the wire. See the
-[Application API](./README.md#application-api) for the TypeScript interface used by a Moddable application.
+This document describes the BLE identity, GATT reports, framing, and JSON messages implemented by the current server.
+See the [Application API](./README.md#application-api) for the TypeScript interface used by a Moddable application.
 
 See [Codex Micro controls](./README.md#codex-micro-controls) for the physical agent keys, action and microphone buttons,
 four-direction joystick, and pressable rotary knob. The six physical agent keys and their wire values are `AG00`
@@ -33,9 +33,11 @@ device as Codex Micro-compatible:
 | Product ID | `0x8360` |
 | Product version | `0x0001` |
 
-The server uses immediate Just Works encryption and bonding. Battery reads and subscriptions, HID input subscriptions,
-and all Vendor Report ID 6 access require encryption. A host may cache the name, identity, report map, and bond. Forget
-the device on the host and clear the ESP32 NVS bond store when testing incompatible identity, security, or report-map
+The server requests immediate Just Works encryption and bonding with no input/output capability. Battery reads and
+subscriptions, HID input reads and subscriptions, Vendor Input reads and subscriptions, Vendor Output reads and writes
+with response, and Vendor Feature reads and writes require encryption. Vendor Output also advertises write without
+response using the corresponding GATT property. A host may cache the name, identity, report map, and bond. Forget the
+device on the host and clear the ESP32 NVS bond store when testing incompatible identity, security, or report-map
 changes.
 
 ### GATT and HID report layout
@@ -139,7 +141,7 @@ Messages without an `id` are notifications and do not produce a response.
 | Method | Parameters |
 | --- | --- |
 | `v.oai.thstatus` | Array of agent-state objects |
-| `v.oai.rgbcfg` | Object containing `ambient` |
+| `v.oai.rgbcfg` | Object containing `ambient`, `keys`, or both |
 | `host.focused_app` | Object containing `appName` |
 
 An agent-state object has the following fields:
@@ -151,12 +153,24 @@ An agent-state object has the following fields:
 | `b` | number | Brightness multiplier. |
 | `e` | integer | Effect identifier. |
 | `s` | number | Effect speed. |
+| `m` | number | Magic-effect parameter. |
+| `sk` | integer | Whether key backlighting is synchronized, encoded as `0` or `1`. |
+| `sa` | integer | Whether ambient lighting is synchronized, encoded as `0` or `1`. |
+
+The server accepts agent IDs from `0` through `5`, integer colors from `0x000000` through `0xffffff`, integer effects
+from `0` through `6`, and `b`, `s`, and `m` values from `0` through `1`. An agent object without a valid `id` is
+discarded. Invalid optional fields are omitted while the remaining valid fields are delivered. The `sk` and `sa` flags
+are converted to booleans for the application callback.
+
+The `ambient` and `keys` objects use the same `c`, `b`, `e`, `s`, and `m` lighting fields and ranges. At least one of
+those objects must contain a valid lighting field for `onAmbientStatus` to be invoked. `host.focused_app` requires a
+string `appName`.
 
 Example agent, ambient, and focused-application notifications:
 
 ```json
 {"method":"v.oai.thstatus","params":[{"id":0,"c":16744448,"b":1,"e":0,"s":0}]}
-{"method":"v.oai.rgbcfg","params":{"ambient":{"c":255,"b":0.5,"e":1,"s":0.25}}}
+{"method":"v.oai.rgbcfg","params":{"ambient":{"c":255,"b":0.5,"e":1,"s":0.25},"keys":{"c":16711680}}}
 {"method":"host.focused_app","params":{"appName":"Codex"}}
 ```
 
@@ -176,4 +190,6 @@ notification behavior first, then returns a response on Vendor Input Report ID 6
 {"id":7,"method":"device.status","result":{"version":"v1.0","profile_index":0,"layer_index":1,"battery":100,"is_charging":false}}
 ```
 
-The current implementation reports `profile_index: 0`, `layer_index: 1`, and `is_charging: false`.
+The current implementation reports `profile_index: 0`, `layer_index: 1`, and `is_charging: false`. Both response
+methods report the built-in protocol version `v1.0`; overriding the constructor's `firmwareRevision` changes the Device
+Information characteristic but does not change these JSON response values.

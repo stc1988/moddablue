@@ -137,8 +137,8 @@ message.
 
 | Callback | Application-level information | Protocol method |
 | --- | --- | --- |
-| `onAgentStatus` | Task-slot colors, brightness, effect, and speed. | `v.oai.thstatus` |
-| `onAmbientStatus` | Ambient color and effect configuration. | `v.oai.rgbcfg` |
+| `onAgentStatus` | Task-slot lighting and synchronization state. | `v.oai.thstatus` |
+| `onAmbientStatus` | Ambient and key-backlight lighting state. | `v.oai.rgbcfg` |
 | `onFocusedApp` | Name of the focused host application. | `host.focused_app` |
 | `onNotifyError` | Error reported while sending a queued BLE notification. | Not a JSON message |
 
