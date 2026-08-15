@@ -16,8 +16,7 @@ const LIGHTING_EFFECT = {
 } as const;
 Object.freeze(LIGHTING_EFFECT);
 type DecimalDigit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-type AgentIndex = 0 | 1 | 2 | 3 | 4 | 5;
-type AgentKey = `AG0${AgentIndex}`;
+type AgentKey = `AG0${0 | 1 | 2 | 3 | 4 | 5}`;
 type ActionKey = `ACT${DecimalDigit}${DecimalDigit}`;
 
 const HID_KEY = {
@@ -43,15 +42,7 @@ const HID_KEY = {
 } as const;
 Object.freeze(HID_KEY);
 
-type EncoderKey = typeof HID_KEY.ENC_CLK | typeof HID_KEY.ENC_CW | typeof HID_KEY.ENC_CC;
-type EncoderPressKey = typeof HID_KEY.ENC_CLK;
 type EncoderStepKey = typeof HID_KEY.ENC_CW | typeof HID_KEY.ENC_CC;
-type HIDKey = AgentKey | ActionKey | EncoderPressKey;
-
-type HIDKeyEvent = {
-	key: HIDKey;
-	pressed: boolean;
-};
 
 type RadialPosition = {
 	angle: number;
@@ -69,7 +60,7 @@ type LightingStatus = {
 };
 
 type AgentStatus = LightingStatus & {
-	id: number;
+	key: AgentKey;
 	syncKeysBacklight?: boolean;
 	syncAmbient?: boolean;
 };
@@ -93,28 +84,23 @@ interface CodexControllerService {
 
 	close(): void;
 	getConnectionState(): ConnectionState;
-	sendHID(event: HIDKeyEvent): boolean;
+	sendAgent(key: AgentKey, pressed: boolean): boolean;
+	sendAction(key: ActionKey, pressed: boolean): boolean;
+	sendEncoderPress(pressed: boolean): boolean;
 	sendEncoderStep(key: EncoderStepKey): boolean;
 	sendRadial(position: RadialPosition): boolean;
-	sendAgent(index: AgentIndex, pressed: boolean): boolean;
-	sendAction(index: number, pressed: boolean): boolean;
 	sendMicrophone(pressed: boolean): boolean;
 }
 
 export type {
 	ActionKey,
-	AgentIndex,
 	AgentKey,
 	AgentStatus,
 	AmbientStatus,
 	CodexControllerService,
 	CodexControllerServiceOptions,
 	ConnectionState,
-	EncoderKey,
-	EncoderPressKey,
 	EncoderStepKey,
-	HIDKey,
-	HIDKeyEvent,
 	LightingEffect,
 	LightingStatus,
 	RadialPosition,

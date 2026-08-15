@@ -1,16 +1,15 @@
 import type {
 	ActionKey,
-	AgentIndex,
+	AgentKey,
 	AgentStatus,
 	AmbientStatus,
 	CodexControllerService,
 	CodexControllerServiceOptions,
 	ConnectionState,
 	EncoderStepKey,
-	HIDKeyEvent,
 	RadialPosition,
 } from "moddablue/codex-controller/service";
-import { LIGHTING_EFFECT } from "moddablue/codex-controller/service";
+import { HID_KEY, LIGHTING_EFFECT } from "moddablue/codex-controller/service";
 import Timer from "timer";
 
 const INITIAL_STATE: ConnectionState = Object.freeze({
@@ -40,12 +39,12 @@ class MockCodexControllerServer implements CodexControllerService {
 				this.#setState({ subscribed: true, subscribedReportCount: 1 });
 				this.onFocusedApp?.("Codex");
 				this.onAgentStatus?.([
-					{ id: 0, color: 0x22c55e, brightness: 1, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
-					{ id: 1, color: 0x38bdf8, brightness: 0.85, effect: LIGHTING_EFFECT.BREATH, speed: 0.6 },
-					{ id: 2, color: 0xf59e0b, brightness: 0.8, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
-					{ id: 3, color: 0x8b5cf6, brightness: 0.75, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
-					{ id: 4, color: 0xef4444, brightness: 0.65, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
-					{ id: 5, color: 0x64748b, brightness: 0.5, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ key: "AG00", color: 0x22c55e, brightness: 1, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ key: "AG01", color: 0x38bdf8, brightness: 0.85, effect: LIGHTING_EFFECT.BREATH, speed: 0.6 },
+					{ key: "AG02", color: 0xf59e0b, brightness: 0.8, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ key: "AG03", color: 0x8b5cf6, brightness: 0.75, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ key: "AG04", color: 0xef4444, brightness: 0.65, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
+					{ key: "AG05", color: 0x64748b, brightness: 0.5, effect: LIGHTING_EFFECT.SOLID, speed: 0 },
 				]);
 			}, 500);
 		}, 500);
@@ -55,9 +54,21 @@ class MockCodexControllerServer implements CodexControllerService {
 		return { ...this.#state };
 	}
 
-	sendHID(event: HIDKeyEvent): boolean {
+	sendAgent(key: AgentKey, pressed: boolean): boolean {
 		if (!this.#state.subscribed) return false;
-		trace(`[codex-controller/mock] key=${event.key} action=${event.pressed ? "down" : "up"}\n`);
+		trace(`[codex-controller/mock] key=${key} action=${pressed ? "down" : "up"}\n`);
+		return true;
+	}
+
+	sendAction(key: ActionKey, pressed: boolean): boolean {
+		if (!this.#state.subscribed) return false;
+		trace(`[codex-controller/mock] key=${key} action=${pressed ? "down" : "up"}\n`);
+		return true;
+	}
+
+	sendEncoderPress(pressed: boolean): boolean {
+		if (!this.#state.subscribed) return false;
+		trace(`[codex-controller/mock] key=${HID_KEY.ENC_CLK} action=${pressed ? "down" : "up"}\n`);
 		return true;
 	}
 
@@ -73,17 +84,9 @@ class MockCodexControllerServer implements CodexControllerService {
 		return true;
 	}
 
-	sendAgent(index: AgentIndex, pressed: boolean): boolean {
-		return this.sendHID({ key: `AG0${index}`, pressed });
-	}
-
-	sendAction(index: number, pressed: boolean): boolean {
-		return this.sendHID({ key: `ACT${index.toString().padStart(2, "0")}` as ActionKey, pressed });
-	}
-
 	sendMicrophone(pressed: boolean): boolean {
-		const first = this.sendAction(10, pressed);
-		const second = this.sendAction(11, pressed);
+		const first = this.sendAction(HID_KEY.ACT10, pressed);
+		const second = this.sendAction(HID_KEY.ACT11, pressed);
 		return first || second;
 	}
 

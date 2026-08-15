@@ -160,7 +160,9 @@ An agent-state object has the following fields:
 The server accepts agent IDs from `0` through `5`, integer colors from `0x000000` through `0xffffff`, integer effects
 from `0` through `6`, and `b`, `s`, and `m` values from `0` through `1`. An agent object without a valid `id` is
 discarded. Invalid optional fields are omitted while the remaining valid fields are delivered. The `sk` and `sa` flags
-are converted to booleans for the application callback.
+are converted to booleans for the application callback. The wire `id` is not exposed in `AgentStatus`; it is converted
+to the corresponding `key` (`0` to `AG00` through `5` to `AG05`) so received state uses the same identifier as
+`sendAgent()`.
 
 The `ambient` and `keys` objects use the same `c`, `b`, `e`, `s`, and `m` lighting fields and ranges. At least one of
 those objects must contain a valid lighting field for `onAmbientStatus` to be invoked. `host.focused_app` requires a

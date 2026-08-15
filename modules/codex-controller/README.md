@@ -14,7 +14,7 @@ server is added only for ESP32 targets.
 
 ```ts
 import HIDCodexControllerServer from "moddablue/codex-controller/server";
-import type { CodexControllerService, HIDKeyEvent, RadialPosition } from "moddablue/codex-controller/service";
+import type { ActionKey, AgentKey, CodexControllerService, RadialPosition } from "moddablue/codex-controller/service";
 import { HID_KEY, LIGHTING_EFFECT } from "moddablue/codex-controller/service";
 ```
 
@@ -87,11 +87,11 @@ encrypted connection subscribes to Vendor Input Report ID 6.
 
 | API | Application-level operation | Wire message |
 | --- | --- | --- |
-| `sendHID(event)` | Send a known Agent, action, or encoder-press key state using `HID_KEY`. | `v.oai.hid` with `act` `0` or `1` |
+| `sendAgent(key, pressed)` | Send an agent-key state. | `AG00` through `AG05` with `act` `0` or `1` |
+| `sendAction(key, pressed)` | Send an action-key state. | `ACT00` through `ACT99` with `act` `0` or `1` |
+| `sendEncoderPress(pressed)` | Send the encoder push state. | `ENC_CLK` with `act` `0` or `1` |
 | `sendEncoderStep(key)` | Send one clockwise or counter-clockwise encoder detent. | `ENC_CW` or `ENC_CC` with `act: 2` |
 | `sendRadial(position)` | Send a normalized joystick position. | `v.oai.rad` with `{a, d}` |
-| `sendAgent(index, pressed)` | Convenience API for task slot index `0` through `5`. | `AG00` through `AG05` |
-| `sendAction(index, pressed)` | Convenience API for action number `0` through `99`. | `ACT00` through `ACT99` |
 | `sendMicrophone(pressed)` | Convenience API for the paired hold-to-talk controls. | Both `ACT10` and `ACT11` |
 
 In an application-defined input handler, pass `true` when a control is pressed and `false` when it is released or
@@ -100,9 +100,9 @@ cancelled. `HID_KEY` provides constants for the known Codex Micro controls: `AG0
 
 ```ts
 // `pressed` is supplied by the application's hardware or UI input handler.
-server.sendHID({ key: HID_KEY.AG00, pressed });
-server.sendHID({ key: HID_KEY.ACT06, pressed });
-server.sendHID({ key: HID_KEY.ENC_CLK, pressed });
+server.sendAgent("AG00", pressed);
+server.sendAction("ACT06", pressed);
+server.sendEncoderPress(pressed);
 
 server.sendEncoderStep(HID_KEY.ENC_CW);
 
@@ -112,19 +112,19 @@ server.sendRadial({
 });
 ```
 
-`sendAgent()` and `sendAction()` are convenience alternatives to constructing those keys with `sendHID()`. Do not call
-both forms for the same input event. `sendMicrophone()` sends both hold-to-talk actions:
+`sendAgent()` and `sendAction()` accept the same key strings sent in the JSON message, so no numeric index conversion is
+needed. `sendMicrophone()` sends both hold-to-talk actions:
 
 ```ts
-server.sendAgent(0, pressed); // AG00
-server.sendAction(6, pressed); // ACT06
+server.sendAgent("AG00", pressed);
+server.sendAction("ACT06", pressed);
 server.sendMicrophone(pressed); // ACT10 and ACT11
 ```
 
-Encoder rotation is a one-shot event rather than a press/release pair. `HIDKeyEvent.key` is a literal union of `AG00`
-through `AG05`, the two-digit action namespace `ACT00` through `ACT99`, and `ENC_CLK`. Only the verified `ACT06` through
-`ACT12` controls have `HID_KEY` constants; use `sendAction()` for another two-digit action number. `EncoderStepKey` is
-`ENC_CW` or `ENC_CC`. The existing `HID_KEY.ENCODER_PRESS`, `HID_KEY.ENCODER_CLOCKWISE`, and
+`AgentKey` is the literal union `AG00` through `AG05`, and `ActionKey` covers the two-digit action namespace `ACT00`
+through `ACT99`. Only the verified `ACT06` through `ACT12` controls have `HID_KEY` constants; pass a literal string to
+`sendAction()` for another two-digit action key. Encoder rotation is a one-shot event rather than a press/release pair.
+`EncoderStepKey` is `ENC_CW` or `ENC_CC`. The existing `HID_KEY.ENCODER_PRESS`, `HID_KEY.ENCODER_CLOCKWISE`, and
 `HID_KEY.ENCODER_COUNTERCLOCKWISE` names remain available as compatibility aliases. `RadialPosition` exposes the named
 `angle` and `distance` properties. The server additionally checks these types and the normalized radial range at
 runtime.
@@ -142,38 +142,90 @@ message.
 | `onFocusedApp` | Name of the focused host application. | `host.focused_app` |
 | `onNotifyError` | Error reported while sending a queued BLE notification. | Not a JSON message |
 
-```ts
-server.onAgentStatus = status => {
-	for (const agent of status)
-		trace(`agent=${agent.id} color=${agent.color}\n`);
-};
+All callbacks default to `null`. Assign a function to receive updates. The server converts compact wire fields to the
+application-facing names below and omits optional fields whose values are missing or invalid.
 
-server.onAmbientStatus = status => {
+#### Shared lighting fields
+
+`onAgentStatus` entries and the `ambient` and `keys` objects passed to `onAmbientStatus` use these optional fields:
+
+| Field | Type and range | Contents |
+| --- | --- | --- |
+| `color` | integer, `0x000000` through `0xffffff` | RGB color encoded as `0xRRGGBB`; converted from wire field `c`. |
+| `brightness` | number, `0` through `1` | Normalized brightness; converted from `b`. |
+| `effect` | integer, `0` through `6` | Lighting effect from `LIGHTING_EFFECT`; converted from `e`. |
+| `speed` | number, `0` through `1` | Normalized effect speed; converted from `s`. |
+| `magic` | number, `0` through `1` | Additional normalized effect parameter; converted from `m`. |
+
+`LIGHTING_EFFECT` maps `OFF`, `SOLID`, `SNAKE`, `RAINBOW`, `BREATH`, `GRADIENT`, and `SHALLOW_BREATH` to effect values
+`0` through `6`. The exported `LightingEffect` type is derived from the same map.
+
+#### `onAgentStatus`
+
+```ts
+server.onAgentStatus = (status: AgentStatus[]) => {
+	for (const agent of status)
+		trace(`agent=${agent.key} color=${agent.color}\n`);
+};
+```
+
+The callback receives one array for each valid `v.oai.thstatus` parameter array. Every retained array entry contains
+`key` and can contain any of the shared lighting fields plus these fields:
+
+| Field | Type and range | Contents |
+| --- | --- | --- |
+| `key` | `AgentKey` (`AG00` through `AG05`) | Agent key used by `sendAgent()`. Converted from required wire field `id`. |
+| `syncKeysBacklight` | `boolean` | Whether key backlighting is synchronized; converted from wire flag `sk` (`0` or `1`). |
+| `syncAmbient` | `boolean` | Whether ambient lighting is synchronized; converted from wire flag `sa` (`0` or `1`). |
+
+The wire IDs `0` through `5` become `AG00` through `AG05`, respectively. An entry without a valid wire `id` is removed
+from the array. Invalid optional fields are removed from that entry while its other valid fields are preserved. An
+empty parameter array, or an array whose entries are all invalid, invokes the callback with `[]`; a non-array parameter
+does not invoke it.
+
+#### `onAmbientStatus`
+
+```ts
+server.onAmbientStatus = (status: AmbientStatus) => {
 	trace(`ambient=${status.ambient?.color}\n`);
 };
+```
 
-server.onFocusedApp = appName => {
+The callback receives an object converted from `v.oai.rgbcfg` parameters:
+
+| Field | Type | Contents |
+| --- | --- | --- |
+| `ambient` | `LightingStatus` | Optional ambient-lighting state using the shared lighting fields. |
+| `keys` | `LightingStatus` | Optional key-backlight state using the shared lighting fields. |
+
+At least one of `ambient` or `keys` must contain a valid shared lighting field. An invalid or empty object is omitted;
+if neither object remains, the callback is not invoked.
+
+#### `onFocusedApp`
+
+```ts
+server.onFocusedApp = (appName: string) => {
 	trace(`focused app=${appName}\n`);
 };
+```
 
-server.onNotifyError = error => {
+The callback receives the `appName` string from `host.focused_app` parameters exactly as supplied by Codex. Missing or
+non-string `appName` values do not invoke the callback.
+
+#### `onNotifyError`
+
+```ts
+server.onNotifyError = (error: Error) => {
 	trace(`notify error=${error.message}\n`);
 };
 ```
 
-The server validates the JSON-RPC parameters and converts the compact wire keys into application-facing names:
-`c` to `color`, `b` to `brightness`, `e` to `effect`, `s` to `speed`, `m` to `magic`, `sk` to
-`syncKeysBacklight`, and `sa` to `syncAmbient`. The `sk` and `sa` integer flags become booleans. Agent IDs are limited
-to `0` through `5`, colors to `0x000000` through `0xffffff`, effects to `0` through `6`, and normalized values to
-`0` through `1`. Invalid agent entries and invalid optional fields are omitted. Malformed method parameters do not
-invoke their callback.
+This callback receives an `Error` when a queued Vendor Input or Battery notification throws or reports a failure. Use
+`error.message` for the failure description. This is a local BLE transport error rather than a message received from
+Codex, and it does not indicate whether Codex accepted earlier successful notifications.
 
-Fields other than `id` are optional in the `AgentStatus` callback type. `AmbientStatus` can contain both `ambient` and
-`keys` lighting objects. Missing numeric state fields are interpreted by the controller example UI as zero.
-
-Use `HIDCodexControllerServer.LIGHTING_EFFECT` instead of numeric effect literals. The map provides `OFF`, `SOLID`,
-`SNAKE`, `RAINBOW`, `BREATH`, `GRADIENT`, and `SHALLOW_BREATH`, mapped to protocol values `0` through `6`. The exported
-`LightingEffect` type is derived from these values, so the runtime map and TypeScript type stay aligned.
+Missing numeric state fields are interpreted by the controller example UI as zero; other applications can choose their
+own fallback behavior.
 
 ### Battery level
 

@@ -1,18 +1,13 @@
 import { GATTServer } from "embedded:io/bluetoothle/peripheral";
 import type {
 	ActionKey,
-	AgentIndex,
 	AgentKey,
 	AgentStatus,
 	AmbientStatus,
 	CodexControllerService,
 	CodexControllerServiceOptions,
 	ConnectionState,
-	EncoderKey,
-	EncoderPressKey,
 	EncoderStepKey,
-	HIDKey,
-	HIDKeyEvent,
 	LightingEffect,
 	LightingStatus,
 	RadialPosition,
@@ -321,9 +316,11 @@ function isDecimalDigit(character: string): boolean {
 	return character >= "0" && character <= "9";
 }
 
-function isHIDKey(key: string): key is HIDKey {
-	if (key === HID_KEY.ENC_CLK) return true;
-	if (key.length === 4 && key.startsWith("AG0")) return key[3] >= "0" && key[3] <= "5";
+function isAgentKey(key: string): key is AgentKey {
+	return key.length === 4 && key.startsWith("AG0") && key[3] >= "0" && key[3] <= "5";
+}
+
+function isActionKey(key: string): key is ActionKey {
 	return key.length === 5 && key.startsWith("ACT") && isDecimalDigit(key[3]) && isDecimalDigit(key[4]);
 }
 
@@ -380,7 +377,7 @@ function toAgentStatus(value: unknown): AgentStatus | undefined {
 	const syncKeysBacklight = optionalNumber(value, "sk", 0, 1, true);
 	const syncAmbient = optionalNumber(value, "sa", 0, 1, true);
 	return {
-		id,
+		key: `AG0${id}` as AgentKey,
 		...lighting,
 		...(syncKeysBacklight === undefined ? {} : { syncKeysBacklight: syncKeysBacklight === 1 }),
 		...(syncAmbient === undefined ? {} : { syncAmbient: syncAmbient === 1 }),
@@ -766,22 +763,28 @@ class HIDCodexControllerServer implements CodexControllerService {
 		};
 	}
 
-	sendHID(event: HIDKeyEvent): boolean {
-		if (!isRecord(event)) throw new TypeError("event must be an object.");
-		const { key, pressed } = event;
-		if (typeof key !== "string" || !isHIDKey(key)) throw new RangeError("event.key is not a supported HID key.");
-		if (typeof pressed !== "boolean") throw new TypeError("event.pressed must be a boolean.");
-		return this.#sendMessage({
-			m: "v.oai.hid",
-			p: { k: key, act: pressed ? 1 : 0 },
-		});
+	sendAgent(key: AgentKey, pressed: boolean): boolean {
+		if (typeof key !== "string" || !isAgentKey(key)) throw new RangeError("key must be AG00 through AG05.");
+		if (typeof pressed !== "boolean") throw new TypeError("pressed must be a boolean.");
+		return this.#sendKey(key, pressed ? 1 : 0);
+	}
+
+	sendAction(key: ActionKey, pressed: boolean): boolean {
+		if (typeof key !== "string" || !isActionKey(key)) throw new RangeError("key must be ACT00 through ACT99.");
+		if (typeof pressed !== "boolean") throw new TypeError("pressed must be a boolean.");
+		return this.#sendKey(key, pressed ? 1 : 0);
+	}
+
+	sendEncoderPress(pressed: boolean): boolean {
+		if (typeof pressed !== "boolean") throw new TypeError("pressed must be a boolean.");
+		return this.#sendKey(HID_KEY.ENC_CLK, pressed ? 1 : 0);
 	}
 
 	sendEncoderStep(key: EncoderStepKey): boolean {
 		if (typeof key !== "string" || !isEncoderStepKey(key)) {
 			throw new RangeError("key must be ENC_CW or ENC_CC.");
 		}
-		return this.#sendMessage({ m: "v.oai.hid", p: { k: key, act: 2 } });
+		return this.#sendKey(key, 2);
 	}
 
 	sendRadial(position: RadialPosition): boolean {
@@ -796,19 +799,9 @@ class HIDCodexControllerServer implements CodexControllerService {
 		return this.#sendMessage({ m: "v.oai.rad", p: { a: angle, d: distance } });
 	}
 
-	sendAgent(index: AgentIndex, pressed: boolean): boolean {
-		if (!Number.isInteger(index) || index < 0 || index > 5) throw new RangeError("index must be from 0 to 5.");
-		return this.sendHID({ key: `AG0${index}`, pressed });
-	}
-
-	sendAction(index: number, pressed: boolean): boolean {
-		if (!Number.isInteger(index) || index < 0 || index > 99) throw new RangeError("index must be from 0 to 99.");
-		return this.sendHID({ key: `ACT${index.toString().padStart(2, "0")}` as ActionKey, pressed });
-	}
-
 	sendMicrophone(pressed: boolean): boolean {
-		const first = this.sendAction(10, pressed);
-		const second = this.sendAction(11, pressed);
+		const first = this.sendAction(HID_KEY.ACT10, pressed);
+		const second = this.sendAction(HID_KEY.ACT11, pressed);
 		return first || second;
 	}
 
@@ -838,6 +831,10 @@ class HIDCodexControllerServer implements CodexControllerService {
 		this.#server?.close();
 		this.#server = undefined;
 		this.#emitConnectionChanged();
+	}
+
+	#sendKey(key: AgentKey | ActionKey | EncoderStepKey | typeof HID_KEY.ENC_CLK, action: 0 | 1 | 2): boolean {
+		return this.#sendMessage({ m: "v.oai.hid", p: { k: key, act: action } });
 	}
 
 	#sendMessage(message: unknown): boolean {
@@ -1030,7 +1027,6 @@ class HIDCodexControllerServer implements CodexControllerService {
 
 export type {
 	ActionKey,
-	AgentIndex,
 	AgentKey,
 	AgentStatus,
 	AmbientStatus,
@@ -1038,11 +1034,7 @@ export type {
 	CodexControllerService,
 	CodexControllerServiceOptions,
 	ConnectionState,
-	EncoderKey,
-	EncoderPressKey,
 	EncoderStepKey,
-	HIDKey,
-	HIDKeyEvent,
 	LightingEffect,
 	LightingStatus,
 	RadialPosition,

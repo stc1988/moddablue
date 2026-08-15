@@ -1,6 +1,7 @@
 import CodexControllerServiceProvider from "CodexControllerServiceProvider";
 import type {
-	AgentIndex,
+	ActionKey,
+	AgentKey,
 	AgentStatus,
 	CodexControllerService,
 	ConnectionState,
@@ -105,7 +106,7 @@ const FocusStyle = new Style({
 
 type AppData = {
 	server: CodexControllerService;
-	agents: MC.Container[];
+	agents: Partial<Record<AgentKey, MC.Container>>;
 	STATUS_DOT?: MC.Content;
 	STATUS_LABEL?: MC.Label;
 	FOCUS_LABEL?: MC.Label;
@@ -113,15 +114,11 @@ type AppData = {
 	KNOB_STATUS?: MC.Label;
 };
 
-type CommandKind = "agent" | "action" | "microphone";
-
 type CommandButtonData = {
 	appData: AppData;
-	kind: CommandKind;
-	index: number;
 	title: string;
 	compact?: boolean;
-};
+} & ({ kind: "agent"; key: AgentKey } | { kind: "action"; key: ActionKey } | { kind: "microphone" });
 
 type JoystickButtonData = {
 	appData: AppData;
@@ -149,7 +146,7 @@ class CommandButtonBehavior extends Behavior {
 		button.captureTouch(id as unknown as string, x, y, ticks);
 		button.state = 1;
 		this.#pressed = true;
-		button.bubble("onCommandChanged", this.data.kind, this.data.index, true);
+		button.bubble("onCommandChanged", this.data, true);
 	}
 
 	onTouchMoved(button: MC.Container, _id: number, x: number, y: number) {
@@ -169,14 +166,14 @@ class CommandButtonBehavior extends Behavior {
 	#release(button: MC.Container) {
 		if (!this.#pressed) return;
 		this.#pressed = false;
-		button.bubble("onCommandChanged", this.data.kind, this.data.index, false);
+		button.bubble("onCommandChanged", this.data, false);
 	}
 }
 
 class AgentButtonBehavior extends CommandButtonBehavior {
 	onCreate(button: MC.Container, data: CommandButtonData) {
 		super.onCreate(button, data);
-		data.appData.agents[data.index] = button;
+		if (data.kind === "agent") data.appData.agents[data.key] = button;
 	}
 }
 
@@ -297,10 +294,9 @@ class CodexControllerAppBehavior extends Behavior {
 		}
 	}
 
-	onCommandChanged(_application: MC.Application, kind: CommandKind, index: number, pressed: boolean) {
-		if (kind === "agent") {
-			if (Number.isInteger(index) && index >= 0 && index <= 5) this.data.server.sendAgent(index as AgentIndex, pressed);
-		} else if (kind === "action") this.data.server.sendAction(index, pressed);
+	onCommandChanged(_application: MC.Application, command: CommandButtonData, pressed: boolean) {
+		if (command.kind === "agent") this.data.server.sendAgent(command.key, pressed);
+		else if (command.kind === "action") this.data.server.sendAction(command.key, pressed);
 		else this.data.server.sendMicrophone(pressed);
 	}
 
@@ -315,7 +311,7 @@ class CodexControllerAppBehavior extends Behavior {
 	}
 
 	onEncoderPressChanged(_application: MC.Application, pressed: boolean) {
-		this.data.server.sendHID({ key: HID_KEY.ENC_CLK, pressed });
+		this.data.server.sendEncoderPress(pressed);
 	}
 
 	onKnobGesture(_application: MC.Application, gesture: string) {
@@ -343,8 +339,7 @@ class CodexControllerAppBehavior extends Behavior {
 
 	onAgentStatusChanged(_application: MC.Application, status: AgentStatus[]) {
 		for (const item of status) {
-			if (!Number.isInteger(item.id) || item.id < 0 || item.id >= this.data.agents.length) continue;
-			const button = this.data.agents[item.id];
+			const button = this.data.agents[item.key];
 			if (!button) continue;
 			const value = item.color ?? 0;
 			const color = colorForAgent(value);
@@ -486,27 +481,27 @@ const ControllerView = Container.template(($: AppData) => ({
 			string: "PAIRING",
 		}),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 0, title: "AG00", compact: true },
+			{ appData: $, kind: "agent", key: "AG00", title: "AG00", compact: true },
 			{ left: 4, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 1, title: "AG01", compact: true },
+			{ appData: $, kind: "agent", key: "AG01", title: "AG01", compact: true },
 			{ left: 57, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 2, title: "AG02", compact: true },
+			{ appData: $, kind: "agent", key: "AG02", title: "AG02", compact: true },
 			{ left: 110, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 3, title: "AG03", compact: true },
+			{ appData: $, kind: "agent", key: "AG03", title: "AG03", compact: true },
 			{ left: 163, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 4, title: "AG04", compact: true },
+			{ appData: $, kind: "agent", key: "AG04", title: "AG04", compact: true },
 			{ left: 216, top: 28, width: 48, height: 28 },
 		),
 		CommandButton(
-			{ appData: $, kind: "agent", index: 5, title: "AG05", compact: true },
+			{ appData: $, kind: "agent", key: "AG05", title: "AG05", compact: true },
 			{ left: 269, top: 28, width: 47, height: 28 },
 		),
 		Label($, {
@@ -552,27 +547,27 @@ const ControllerView = Container.template(($: AppData) => ({
 			string: "READY",
 		}),
 		CommandButton(
-			{ appData: $, kind: "action", index: 6, title: "ACT06", compact: true },
+			{ appData: $, kind: "action", key: "ACT06", title: "ACT06", compact: true },
 			{ left: 4, top: 168, width: 60, height: 31 },
 		),
 		CommandButton(
-			{ appData: $, kind: "action", index: 7, title: "ACT07", compact: true },
+			{ appData: $, kind: "action", key: "ACT07", title: "ACT07", compact: true },
 			{ left: 68, top: 168, width: 60, height: 31 },
 		),
 		CommandButton(
-			{ appData: $, kind: "action", index: 8, title: "ACT08", compact: true },
+			{ appData: $, kind: "action", key: "ACT08", title: "ACT08", compact: true },
 			{ left: 132, top: 168, width: 60, height: 31 },
 		),
 		CommandButton(
-			{ appData: $, kind: "action", index: 9, title: "ACT09", compact: true },
+			{ appData: $, kind: "action", key: "ACT09", title: "ACT09", compact: true },
 			{ left: 196, top: 168, width: 60, height: 31 },
 		),
 		CommandButton(
-			{ appData: $, kind: "action", index: 12, title: "ACT12", compact: true },
+			{ appData: $, kind: "action", key: "ACT12", title: "ACT12", compact: true },
 			{ right: 4, top: 168, width: 60, height: 31 },
 		),
 		CommandButton(
-			{ appData: $, kind: "microphone", index: 10, title: "MIC  ACT10 + ACT11", compact: true },
+			{ appData: $, kind: "microphone", title: "MIC  ACT10 + ACT11", compact: true },
 			{ left: 4, right: 4, top: 202, bottom: 4 },
 		),
 	],
@@ -588,7 +583,7 @@ export default function () {
 	const server: CodexControllerService = new CodexControllerServiceProvider({
 		deviceName: "Vibe Watch #1",
 	});
-	const data: AppData = { server, agents: new Array(6) };
+	const data: AppData = { server, agents: {} };
 	const app = new CodexControllerApp(data, {
 		commandListLength: 4096,
 		displayListLength: 4096,
