@@ -57,9 +57,7 @@ class MockCodexControllerServer implements CodexControllerService {
 
 	sendHID(event: HIDKeyEvent): boolean {
 		if (!this.#state.subscribed) return false;
-		trace(
-			`[codex-controller/mock] key=${event.key} action=${event.pressed ? "down" : "up"} agent=${event.agent ?? "none"}\n`,
-		);
+		trace(`[codex-controller/mock] key=${event.key} action=${event.pressed ? "down" : "up"}\n`);
 		return true;
 	}
 
@@ -76,7 +74,7 @@ class MockCodexControllerServer implements CodexControllerService {
 	}
 
 	sendAgent(index: AgentIndex, pressed: boolean): boolean {
-		return this.sendHID({ key: `AG0${index}`, pressed, agent: index });
+		return this.sendHID({ key: `AG0${index}`, pressed });
 	}
 
 	sendAction(index: number, pressed: boolean): boolean {

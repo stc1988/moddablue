@@ -322,13 +322,13 @@ function isDecimalDigit(character: string): boolean {
 }
 
 function isHIDKey(key: string): key is HIDKey {
-	if (key === HID_KEY.ENCODER_PRESS) return true;
+	if (key === HID_KEY.ENC_CLK) return true;
 	if (key.length === 4 && key.startsWith("AG0")) return key[3] >= "0" && key[3] <= "5";
 	return key.length === 5 && key.startsWith("ACT") && isDecimalDigit(key[3]) && isDecimalDigit(key[4]);
 }
 
 function isEncoderStepKey(key: string): key is EncoderStepKey {
-	return key === HID_KEY.ENCODER_CLOCKWISE || key === HID_KEY.ENCODER_COUNTERCLOCKWISE;
+	return key === HID_KEY.ENC_CW || key === HID_KEY.ENC_CC;
 }
 
 function optionalNumber(
@@ -768,15 +768,12 @@ class HIDCodexControllerServer implements CodexControllerService {
 
 	sendHID(event: HIDKeyEvent): boolean {
 		if (!isRecord(event)) throw new TypeError("event must be an object.");
-		const { key, pressed, agent } = event;
+		const { key, pressed } = event;
 		if (typeof key !== "string" || !isHIDKey(key)) throw new RangeError("event.key is not a supported HID key.");
 		if (typeof pressed !== "boolean") throw new TypeError("event.pressed must be a boolean.");
-		if (agent !== undefined && (!Number.isInteger(agent) || agent < 0 || agent > 5)) {
-			throw new RangeError("event.agent must be an integer from 0 to 5.");
-		}
 		return this.#sendMessage({
 			m: "v.oai.hid",
-			p: { k: key, act: pressed ? 1 : 0, ...(agent === undefined ? {} : { ag: agent }) },
+			p: { k: key, act: pressed ? 1 : 0 },
 		});
 	}
 
@@ -801,7 +798,7 @@ class HIDCodexControllerServer implements CodexControllerService {
 
 	sendAgent(index: AgentIndex, pressed: boolean): boolean {
 		if (!Number.isInteger(index) || index < 0 || index > 5) throw new RangeError("index must be from 0 to 5.");
-		return this.sendHID({ key: `AG0${index}`, pressed, agent: index });
+		return this.sendHID({ key: `AG0${index}`, pressed });
 	}
 
 	sendAction(index: number, pressed: boolean): boolean {

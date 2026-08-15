@@ -315,7 +315,7 @@ class CodexControllerAppBehavior extends Behavior {
 	}
 
 	onEncoderPressChanged(_application: MC.Application, pressed: boolean) {
-		this.data.server.sendHID({ key: HID_KEY.ENCODER_PRESS, pressed });
+		this.data.server.sendHID({ key: HID_KEY.ENC_CLK, pressed });
 	}
 
 	onKnobGesture(_application: MC.Application, gesture: string) {
@@ -539,15 +539,9 @@ const ControllerView = Container.template(($: AppData) => ({
 			style: ControlTitleStyle,
 			string: "KNOB",
 		}),
-		EncoderStepButton(
-			{ appData: $, key: HID_KEY.ENCODER_COUNTERCLOCKWISE, title: "CCW" },
-			{ left: 114, top: 98, width: 54, height: 45 },
-		),
+		EncoderStepButton({ appData: $, key: HID_KEY.ENC_CC, title: "CCW" }, { left: 114, top: 98, width: 54, height: 45 }),
 		EncoderPressButton($, { left: 171, top: 98, width: 88, height: 45 }),
-		EncoderStepButton(
-			{ appData: $, key: HID_KEY.ENCODER_CLOCKWISE, title: "CW" },
-			{ left: 262, top: 98, width: 54, height: 45 },
-		),
+		EncoderStepButton({ appData: $, key: HID_KEY.ENC_CW, title: "CW" }, { left: 262, top: 98, width: 54, height: 45 }),
 		Label($, {
 			anchor: "KNOB_STATUS",
 			left: 114,

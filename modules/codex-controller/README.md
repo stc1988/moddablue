@@ -87,31 +87,24 @@ encrypted connection subscribes to Vendor Input Report ID 6.
 
 | API | Application-level operation | Wire message |
 | --- | --- | --- |
-| `sendHID(event)` | Send a typed Agent, action, or encoder-press event. | `v.oai.hid` with `act` `0` or `1` |
+| `sendHID(event)` | Send a known Agent, action, or encoder-press key state using `HID_KEY`. | `v.oai.hid` with `act` `0` or `1` |
 | `sendEncoderStep(key)` | Send one clockwise or counter-clockwise encoder detent. | `ENC_CW` or `ENC_CC` with `act: 2` |
 | `sendRadial(position)` | Send a normalized joystick position. | `v.oai.rad` with `{a, d}` |
-| `sendAgent(index, pressed)` | Select task slot 1 through 6 with index `0` through `5`. | `AG00` through `AG05` |
-| `sendAction(index, pressed)` | Send action number `0` through `99`. | `ACT00` through `ACT99` |
-| `sendMicrophone(pressed)` | Send the paired hold-to-talk controls. | Both `ACT10` and `ACT11` |
+| `sendAgent(index, pressed)` | Convenience API for task slot index `0` through `5`. | `AG00` through `AG05` |
+| `sendAction(index, pressed)` | Convenience API for action number `0` through `99`. | `ACT00` through `ACT99` |
+| `sendMicrophone(pressed)` | Convenience API for the paired hold-to-talk controls. | Both `ACT10` and `ACT11` |
 
-Pass `true` for a press and `false` for a release:
+In an application-defined input handler, pass `true` when a control is pressed and `false` when it is released or
+cancelled. `HID_KEY` provides constants for the known Codex Micro controls: `AG00` through `AG05`, `ACT06` through
+`ACT12`, `ENC_CLK`, `ENC_CW`, and `ENC_CC`.
 
 ```ts
-server.sendAgent(0, true);
-server.sendAgent(0, false);
+// `pressed` is supplied by the application's hardware or UI input handler.
+server.sendHID({ key: HID_KEY.AG00, pressed });
+server.sendHID({ key: HID_KEY.ACT06, pressed });
+server.sendHID({ key: HID_KEY.ENC_CLK, pressed });
 
-server.sendAction(1, true);
-server.sendAction(1, false);
-
-server.sendMicrophone(true);
-server.sendMicrophone(false);
-
-server.sendHID({
-	key: HIDCodexControllerServer.HID_KEY.ENCODER_PRESS,
-	pressed: true,
-});
-
-server.sendEncoderStep(HIDCodexControllerServer.HID_KEY.ENCODER_CLOCKWISE);
+server.sendEncoderStep(HID_KEY.ENC_CW);
 
 server.sendRadial({
 	angle: 0.5,
@@ -119,10 +112,22 @@ server.sendRadial({
 });
 ```
 
-`HIDKeyEvent.key` is a literal union of `AG00` through `AG05`, `ACT00` through `ACT99`, and `ENC_CLK`. Its optional
-`agent` field is typed as `0 | 1 | 2 | 3 | 4 | 5`. `EncoderStepKey` is `ENC_CW` or `ENC_CC`. `RadialPosition` exposes
-the named `angle` and `distance` properties. The server additionally checks these types and the normalized radial range
-at runtime.
+`sendAgent()` and `sendAction()` are convenience alternatives to constructing those keys with `sendHID()`. Do not call
+both forms for the same input event. `sendMicrophone()` sends both hold-to-talk actions:
+
+```ts
+server.sendAgent(0, pressed); // AG00
+server.sendAction(6, pressed); // ACT06
+server.sendMicrophone(pressed); // ACT10 and ACT11
+```
+
+Encoder rotation is a one-shot event rather than a press/release pair. `HIDKeyEvent.key` is a literal union of `AG00`
+through `AG05`, the two-digit action namespace `ACT00` through `ACT99`, and `ENC_CLK`. Only the verified `ACT06` through
+`ACT12` controls have `HID_KEY` constants; use `sendAction()` for another two-digit action number. `EncoderStepKey` is
+`ENC_CW` or `ENC_CC`. The existing `HID_KEY.ENCODER_PRESS`, `HID_KEY.ENCODER_CLOCKWISE`, and
+`HID_KEY.ENCODER_COUNTERCLOCKWISE` names remain available as compatibility aliases. `RadialPosition` exposes the named
+`angle` and `distance` properties. The server additionally checks these types and the normalized radial range at
+runtime.
 
 Each method returns `true` when at least one report was queued for a subscribed connection. It returns `false` when
 there was no eligible connection. A `true` result confirms queueing only; it does not confirm that Codex processed the

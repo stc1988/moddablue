@@ -15,26 +15,42 @@ const LIGHTING_EFFECT = {
 	SHALLOW_BREATH: 6,
 } as const;
 Object.freeze(LIGHTING_EFFECT);
+type DecimalDigit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type AgentIndex = 0 | 1 | 2 | 3 | 4 | 5;
+type AgentKey = `AG0${AgentIndex}`;
+type ActionKey = `ACT${DecimalDigit}${DecimalDigit}`;
+
 const HID_KEY = {
+	AG00: "AG00",
+	AG01: "AG01",
+	AG02: "AG02",
+	AG03: "AG03",
+	AG04: "AG04",
+	AG05: "AG05",
+	ACT06: "ACT06",
+	ACT07: "ACT07",
+	ACT08: "ACT08",
+	ACT09: "ACT09",
+	ACT10: "ACT10",
+	ACT11: "ACT11",
+	ACT12: "ACT12",
+	ENC_CLK: "ENC_CLK",
+	ENC_CW: "ENC_CW",
+	ENC_CC: "ENC_CC",
 	ENCODER_PRESS: "ENC_CLK",
 	ENCODER_CLOCKWISE: "ENC_CW",
 	ENCODER_COUNTERCLOCKWISE: "ENC_CC",
 } as const;
 Object.freeze(HID_KEY);
 
-type DecimalDigit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-type AgentIndex = 0 | 1 | 2 | 3 | 4 | 5;
-type AgentKey = `AG0${AgentIndex}`;
-type ActionKey = `ACT${DecimalDigit}${DecimalDigit}`;
-type EncoderKey = (typeof HID_KEY)[keyof typeof HID_KEY];
-type EncoderPressKey = typeof HID_KEY.ENCODER_PRESS;
-type EncoderStepKey = typeof HID_KEY.ENCODER_CLOCKWISE | typeof HID_KEY.ENCODER_COUNTERCLOCKWISE;
+type EncoderKey = typeof HID_KEY.ENC_CLK | typeof HID_KEY.ENC_CW | typeof HID_KEY.ENC_CC;
+type EncoderPressKey = typeof HID_KEY.ENC_CLK;
+type EncoderStepKey = typeof HID_KEY.ENC_CW | typeof HID_KEY.ENC_CC;
 type HIDKey = AgentKey | ActionKey | EncoderPressKey;
 
 type HIDKeyEvent = {
 	key: HIDKey;
 	pressed: boolean;
-	agent?: AgentIndex;
 };
 
 type RadialPosition = {
