@@ -1,0 +1,41 @@
+{
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/examples/manifest_piu.json",
+		"$(MODDABLE)/examples/manifest_typings.json",
+		"$(MODDABLE)/modules/piu/MC/outline/manifest.json",
+		"../../modules/codex-controller/manifest.json",
+		{
+			"git": "https://github.com/stc1988/moddable-unit_hmi.git",
+			"branch": "main",
+			"manifest": "./src/drivers/unit/bytebutton/manifest.json"
+		},
+		{
+			"git": "https://github.com/stc1988/moddable-m5chain.git",
+			"branch": "main"
+		}
+	],
+	"modules": {
+		"*": "./main"
+	},
+	"creation": {
+		"heap": {
+			"initial": 6144,
+			"incremental": 0
+		}
+	},
+	"typescript": {
+		"tsconfig": {
+			"compilerOptions": {
+				"lib": ["es2024", "esnext.disposable"],
+				"target": "ES2024"
+			}
+		}
+	},
+	"platforms": {
+		"esp32/m5atom_s3r": {},
+		"...": {
+			"error": "The M5 AtomS3R Codex controller example supports only esp32/m5atom_s3r"
+		}
+	}
+}

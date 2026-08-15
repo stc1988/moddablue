@@ -12,6 +12,7 @@
 		"build:hid-media:esp32": "cd examples/hid-media-control && mcconfig -d -m -p esp32/moddable_two -t build",
 		"build:codex:sim": "cd examples/codex-controller && mcconfig -d -m -p sim -t build",
 		"build:codex:esp32": "cd examples/codex-controller && mcconfig -d -m -p esp32/moddable_two -t build",
+		"build:codex:m5atom-s3r": "cd examples/codex-controller-m5atom-s3r && mcconfig -d -m -p esp32/m5atom_s3r -t build",
 		"debug:sim": "cd examples/ams-media-player && mcconfig -dl -m -p sim",
 		"debug:ancs:sim": "cd examples/ancs-notifications && mcconfig -dl -m -p sim",
 		"debug:hid:sim": "cd examples/hid-keyboard && mcconfig -dl -m -p sim",

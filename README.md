@@ -28,6 +28,7 @@ README for its public imports and include example.
 | [`hid-keyboard`](examples/hid-keyboard/) | Human Interface Device (HID) | simulator / ESP32 | 320x240 touch keyboard with a mock service in the simulator and BLE HID on hardware. |
 | [`hid-media-control`](examples/hid-media-control/) | Human Interface Device (HID) | simulator / ESP32 | 320x240 radial touch remote for playback, track, and volume controls. |
 | [`codex-controller`](examples/codex-controller/) | Human Interface Device (HID) | simulator / ESP32 | 320x240 Codex task, action, and push-to-talk controller using ECMA-419 BLE. |
+| [`codex-controller-m5atom-s3r`](examples/codex-controller-m5atom-s3r/) | Human Interface Device (HID) | M5 AtomS3R | Physical Codex controller using Unit ByteButton, M5Chain JoyStick, and M5Chain Encoder. |
 
 Each example has its own `manifest.json`, includes reusable implementations from `modules/`, and can be built
 independently. See each example's README for hardware requirements, usage, and limitations.
@@ -90,6 +91,7 @@ npm run build:hid-media:esp32
 ```sh
 npm run build:codex:sim
 npm run build:codex:esp32
+npm run build:codex:m5atom-s3r
 ```
 
 ## Development
