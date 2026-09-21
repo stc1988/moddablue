@@ -3,6 +3,19 @@ const path = require("node:path");
 const { TextDecoder } = require("node:util");
 const fontkit = require("fontkit");
 
+/*
+ * フォントが収録している文字から、Moddable の `characterFiles` に渡す文字一覧を生成する。
+ * 対象は下記の Unicode ブロック、JIS 第1水準漢字、および明示的に追加した文字。
+ *
+ * 使い方:
+ *   npm run extract-font-chars
+ *   npm run extract-font-chars -- path/to/font.ttf --chars "追加文字" --output path/to/chars.txt
+ *
+ * フォントを省略すると共有の MPLUS1-Medium.ttf を読み、同じディレクトリの
+ * MPLUS1-chars.txt を更新する。別のフォントでは、既定の出力先はそのフォントと
+ * 同じディレクトリの `<フォント名>-chars.txt`。未収録の追加文字は警告に表示する。
+ */
+
 // 生成対象にする Unicode ブロックはここで管理する。
 const TARGET_UNICODE_BLOCKS = [
 	{ name: "Basic Latin", start: 0x0000, end: 0x007f },
