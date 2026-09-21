@@ -1,7 +1,7 @@
 # Agent Guide
 
-This is the repository-wide guide for coding agents and maintainers. Keep protocol-specific implementation details in
-the closest nested `AGENTS.md`, and keep user-facing usage documentation in README files.
+This file contains only repository-wide guidance. Use the closest nested `AGENTS.md` for component-specific work and
+README files for user-facing behavior and usage.
 
 ## Repository Shape
 
@@ -18,7 +18,8 @@ examples/                Independently buildable applications
 ├─ ancs-notifications/
 ├─ hid-keyboard/
 ├─ hid-media-control/
-└─ codex-controller/
+├─ codex-controller/
+└─ codex-controller-m5atom-s3r/
 ```
 
 Each module exposes a `manifest.json` that applications include. Each example has its own README and `manifest.json` and
@@ -26,7 +27,7 @@ must remain buildable from its directory.
 
 ## Documentation Routing
 
-Read only the documentation relevant to the task unless a cross-module change requires broader context:
+Read documentation when the task enters the area it covers:
 
 - AMS protocol, GATT, or pairing work: `modules/ams/README.md` and `modules/ams/AGENTS.md`
 - ANCS protocol, notification, or pairing work: `modules/ancs/README.md` and `modules/ancs/AGENTS.md`
@@ -35,12 +36,13 @@ Read only the documentation relevant to the task unless a cross-module change re
 - Codex controller work and application API: `modules/codex-controller/README.md`; wire protocol work:
   `modules/codex-controller/PROTOCOL.md`
 - AMS media-player UI or adapter work: `examples/ams-media-player/README.md` and its nested `AGENTS.md`
-- ANCS example application work: `examples/ancs-notifications/README.md`
+- ANCS example application work: `examples/ancs-notifications/README.md` and its nested `AGENTS.md`
 - HID keyboard example work: `examples/hid-keyboard/README.md`
 - HID media-control example work: `examples/hid-media-control/README.md` and its nested `AGENTS.md`
+- Codex controller example work: the example's README and nested `AGENTS.md`
 
-Do not load another protocol's detailed documentation merely because it exists in the repository. Consult the relevant
-module guides together only when changing shared BLE abstractions, repository structure, or cross-module conventions.
+For shared BLE abstractions, repository structure, or cross-module conventions, consult the affected component guides
+together. Otherwise, do not load unrelated protocol documentation.
 
 ## Repository-Wide Rules
 
@@ -71,5 +73,14 @@ module guides together only when changing shared BLE abstractions, repository st
 
 ## Validation
 
-- Run `npm run check` before handing work back.
-- Run `npm run typecheck` and report any pre-existing typing gaps separately from new errors.
+- Documentation-only changes need no code validation; check the edited text and links directly.
+- For implementation, manifest, or configuration changes, run `npm run check` and `npm run typecheck`, plus the narrowest
+  relevant build or test command when one exists.
+- Local validation has no production access. Run it, fix failures caused by the requested change, and rerun affected
+  checks without asking for approval at each step. Report pre-existing failures separately from new ones.
+
+## Completion Boundary
+
+For requested code changes, continue through implementation, synchronized documentation, and relevant local validation.
+Do not stop after a first pass when an in-scope failure can be diagnosed and fixed locally. Ask before actions with
+external effects or when a missing product decision would materially change public behavior.
