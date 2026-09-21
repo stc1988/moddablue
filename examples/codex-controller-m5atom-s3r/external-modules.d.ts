@@ -60,11 +60,25 @@ declare module "m5chainEncoder" {
 		readonly connected: boolean;
 		onSample: ((delta: number) => void) | null;
 		onDisconnected: (() => void | Promise<void>) | null;
-		configure(options: {
-			key?: { mode?: 0 | 1 };
-			encoder?: { abDirection?: 0 | 1; saveToFlash?: 0 | 1 };
-		}): Promise<void>;
+		configure(options: { key?: { mode?: 0 | 1 }; abDirection?: 0 | 1; saveToFlash?: 0 | 1 }): Promise<void>;
 		isKeyPressed(): Promise<boolean>;
+	}
+}
+
+declare module "m5chainBuzzer" {
+	export const BUZZER_NOTE: {
+		readonly E6: number;
+		readonly C7: number;
+	};
+
+	export default class M5ChainBuzzer {
+		static readonly DEVICE_TYPE: 11;
+		readonly kind: "buzzer";
+		readonly connected: boolean;
+		playMelody(
+			melody: readonly { note: number; beats: number }[],
+			options: { tempoBpm: number; gateRatio?: number },
+		): Promise<void>;
 	}
 }
 
@@ -77,6 +91,6 @@ declare module "unit/bytebutton" {
 		close(): void;
 		setLedMode(mode: 0 | 1): void;
 		setLedBrightness(led: number, brightness: number): void;
-		setLed(led: number, red: number, green: number, blue: number): void;
+		setLed(led: number, color: { r: number; g: number; b: number }): void;
 	}
 }

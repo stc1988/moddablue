@@ -6,6 +6,7 @@
  *     http://creativecommons.org/licenses/by/4.0/
  */
 
+import M5ChainBuzzer, { BUZZER_NOTE } from "m5chainBuzzer";
 import M5ChainEncoder, { EncoderABDirection, SaveToFlash } from "m5chainEncoder";
 import M5ChainJoyStick, { type JoystickValue, KEY_MODE } from "m5chainJoyStick";
 import { Outline } from "commodetto/outline";
@@ -32,23 +33,36 @@ const JOYSTICK_DEAD_ZONE = Math.round(127 * 0.15);
 const KEY_POLLING_INTERVAL = 30;
 const ACTION_LED_BRIGHTNESS = 128;
 const AGENT_COLOR_BRIGHTNESS_BOOST = 64;
+const COLOR_NOTIFICATION_MELODY = Object.freeze([
+	{ note: BUZZER_NOTE.E6, beats: 0.5 },
+	{ note: BUZZER_NOTE.C7, beats: 0.5 },
+] as const);
+const COLOR_NOTIFICATION_OPTIONS = Object.freeze({
+	tempoBpm: 200,
+	gateRatio: 0.82,
+});
 
 const AGENT_KEYS = Object.freeze(["AG00", "AG01", "AG02", "AG03", "AG04", "AG05"] as const);
 const ACTION_KEYS = Object.freeze([HID_KEY.ACT06, HID_KEY.ACT07] as const);
-const CHAIN_DEVICE_CLASSES = Object.freeze([M5ChainJoyStick, M5ChainEncoder]);
+const CHAIN_DEVICE_CLASSES = Object.freeze([M5ChainJoyStick, M5ChainEncoder, M5ChainBuzzer]);
 
 type ChainDevice = RegisteredM5ChainDevice<typeof CHAIN_DEVICE_CLASSES>;
 type JoystickDevice = Extract<ChainDevice, { kind: "joystick" }>;
 type EncoderDevice = Extract<ChainDevice, { kind: "encoder" }>;
+type BuzzerDevice = Extract<ChainDevice, { kind: "buzzer" }>;
 
 type AtomButton = {
-	read(): number;
-	onChanged?: (() => void) | null;
+	readonly pressed: boolean;
+	close(): void;
 };
 
-type AtomGlobals = typeof globalThis & {
-	button?: {
-		a?: AtomButton;
+type AtomButtonConstructor = new (options: { onPush(this: AtomButton): void }) => AtomButton;
+
+declare const device: {
+	peripheral: {
+		button: {
+			A: AtomButtonConstructor;
+		};
 	};
 };
 
@@ -188,6 +202,7 @@ class ControllerHardware {
 	#m5chain?: M5Chain<typeof CHAIN_DEVICE_CLASSES>;
 	#joystick?: JoystickDevice;
 	#encoder?: EncoderDevice;
+	#buzzer?: BuzzerDevice;
 	#joystickDirection = "center";
 	#joystickPressed = false;
 	#encoderPressed = false;
@@ -209,22 +224,29 @@ class ControllerHardware {
 	updateAgentStatus(statuses: AgentStatus[]) {
 		const byteButton = this.#byteButton;
 		if (!byteButton) return;
+		let shouldNotify = false;
 
 		try {
 			for (const status of statuses) {
 				const index = AGENT_KEYS.indexOf(status.key);
 				if (index < 0) continue;
 				const light = this.#agentLights[index];
-				if (status.color !== undefined) light.color = status.color;
+				if (status.color !== undefined) {
+					if (status.color !== light.color && status.color !== 0x000000) shouldNotify = true;
+					light.color = status.color;
+				}
 				if (status.brightness !== undefined) light.brightness = status.brightness;
 				if (status.effect !== undefined) light.effect = status.effect;
 				this.#applyAgentLight(index, light);
 			}
 		} catch (error) {
 			logError("ByteButton LED update", error);
-			byteButton.close();
+			safelyCloseByteButton(byteButton);
 			this.#byteButton = undefined;
+			return;
 		}
+
+		if (shouldNotify) this.#playColorNotification();
 	}
 
 	updateAmbientStatus(status: AmbientStatus) {
@@ -242,12 +264,14 @@ class ControllerHardware {
 		this.#joystickLightDirty = false;
 		if (this.#keyTimer) Timer.clear(this.#keyTimer);
 		this.#keyTimer = undefined;
-		if (this.#atomButton) this.#atomButton.onChanged = undefined;
+		this.#atomButton?.close();
+		this.#atomButton = undefined;
 		this.#releaseMicrophone();
 		this.#releaseByteButtons();
 		this.#releaseJoystick();
 		this.#releaseEncoder();
-		this.#byteButton?.close();
+		this.#buzzer = undefined;
+		if (this.#byteButton) safelyCloseByteButton(this.#byteButton);
 		this.#byteButton = undefined;
 		const m5chain = this.#m5chain;
 		this.#m5chain = undefined;
@@ -255,19 +279,16 @@ class ControllerHardware {
 	}
 
 	#startAtomButton() {
-		const button = (globalThis as AtomGlobals).button?.a;
-		if (!button) {
-			log("globalThis.button.a is unavailable");
-			return;
-		}
-		this.#atomButton = button;
-		button.onChanged = () => {
-			const pressed = !button.read();
-			if (pressed === this.#microphonePressed) return;
-			this.#microphonePressed = pressed;
-			this.#server.sendMicrophone(pressed);
-			this.#onMicrophoneChanged(pressed);
-		};
+		const controller = this;
+		this.#atomButton = new device.peripheral.button.A({
+			onPush() {
+				const pressed = this.pressed;
+				if (pressed === controller.#microphonePressed) return;
+				controller.#microphonePressed = pressed;
+				controller.#server.sendMicrophone(pressed);
+				controller.#onMicrophoneChanged(pressed);
+			},
+		});
 	}
 
 	#startByteButton() {
@@ -277,14 +298,14 @@ class ControllerHardware {
 			byteButton.setLedMode(ByteButton.LED_MODE.MANUAL);
 			for (let led = 0; led < ByteButton.LED_COUNT; led++) {
 				byteButton.setLedBrightness(led, led === 8 ? 0 : led < AGENT_KEYS.length ? 255 : ACTION_LED_BRIGHTNESS);
-				if (led === 6) byteButton.setLed(led, 0, 255, 0);
-				else if (led === 7) byteButton.setLed(led, 255, 0, 0);
-				else byteButton.setLed(led, 0, 0, 0);
+				if (led === 6) byteButton.setLed(led, { r: 0, g: 255, b: 0 });
+				else if (led === 7) byteButton.setLed(led, { r: 255, g: 0, b: 0 });
+				else byteButton.setLed(led, { r: 0, g: 0, b: 0 });
 			}
 			byteButton.onButtonChange = (button, pressed) => this.#onByteButtonChanged(button, pressed);
 			this.#byteButton = byteButton;
 		} catch (error) {
-			byteButton?.close();
+			if (byteButton) safelyCloseByteButton(byteButton);
 			this.#byteButton = undefined;
 			logError("ByteButton initialization", error);
 		}
@@ -306,7 +327,11 @@ class ControllerHardware {
 		if (brightness > 0 && light.color !== 0x000000 && light.color !== 0xffffff)
 			brightness = Math.min(255, brightness + AGENT_COLOR_BRIGHTNESS_BOOST);
 		byteButton.setLedBrightness(index, brightness);
-		byteButton.setLed(index, (light.color >> 16) & 0xff, (light.color >> 8) & 0xff, light.color & 0xff);
+		byteButton.setLed(index, {
+			r: (light.color >> 16) & 0xff,
+			g: (light.color >> 8) & 0xff,
+			b: light.color & 0xff,
+		});
 	}
 
 	#startM5Chain() {
@@ -329,6 +354,8 @@ class ControllerHardware {
 	async #onChainDevicesChanged(devices: readonly ChainDevice[]) {
 		const joystick = devices.find((device): device is JoystickDevice => device.kind === "joystick");
 		const encoder = devices.find((device): device is EncoderDevice => device.kind === "encoder");
+		const buzzer = devices.find((device): device is BuzzerDevice => device.kind === "buzzer");
+		this.#buzzer = buzzer;
 
 		if (joystick !== this.#joystick) {
 			this.#releaseJoystick();
@@ -358,10 +385,8 @@ class ControllerHardware {
 				try {
 					await encoder.configure({
 						key: { mode: KEY_MODE.PASSIVE },
-						encoder: {
-							abDirection: EncoderABDirection.CLOCKWISE_INCREASE,
-							saveToFlash: SaveToFlash.DISABLE,
-						},
+						abDirection: EncoderABDirection.CLOCKWISE_INCREASE,
+						saveToFlash: SaveToFlash.DISABLE,
 					});
 					if (this.#encoder === encoder && encoder.connected) {
 						encoder.onSample = (delta) => this.#onEncoderSample(delta);
@@ -376,6 +401,14 @@ class ControllerHardware {
 				}
 			}
 		}
+	}
+
+	#playColorNotification() {
+		const buzzer = this.#buzzer;
+		if (!buzzer?.connected) return;
+		void buzzer
+			.playMelody(COLOR_NOTIFICATION_MELODY, COLOR_NOTIFICATION_OPTIONS)
+			.catch((error: unknown) => logError("buzzer color notification", error));
 	}
 
 	#requestJoystickLightUpdate() {
@@ -526,6 +559,14 @@ function log(message: string) {
 
 function logError(context: string, error: unknown) {
 	log(`${context} failed: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+function safelyCloseByteButton(byteButton: ByteButton) {
+	try {
+		byteButton.close();
+	} catch (error) {
+		logError("ByteButton cleanup", error);
+	}
 }
 
 export default function () {

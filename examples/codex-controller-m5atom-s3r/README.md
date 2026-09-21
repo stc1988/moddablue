@@ -3,6 +3,7 @@
 A hardware-only Codex controller for the M5 AtomS3R. The 128x128 display shows a microphone icon surrounded by a
 five-pixel BLE status frame. The AtomS3R button controls push-to-talk, an M5Stack Unit ByteButton supplies the six agent
 keys and two action keys, and M5Chain JoyStick and Encoder devices provide navigation and encoder input.
+An M5Chain Buzzer plays a two-note notification when a ByteButton agent LED changes to a non-black color.
 
 The application reuses the `moddablue/codex-controller/server` BLE HID implementation. It includes the ByteButton and
 M5Chain drivers directly from their Git repositories, following their `main` branches.
@@ -12,6 +13,7 @@ M5Chain drivers directly from their Git repositories, following their `main` bra
 - M5 AtomS3R
 - M5Stack Unit ByteButton connected to the AtomS3R Port A I2C pins
 - Atom Chain Base connected to an M5Chain JoyStick and M5Chain Encoder
+- M5Chain Buzzer connected to the same chain
 
 The ByteButton driver uses the target's default I2C bus. The M5Chain manifest supplies the AtomS3R UART pins used by the
 Atom Chain Base (`TX=5`, `RX=6`).
@@ -23,6 +25,7 @@ Atom Chain Base (`TX=5`, `RX=6`).
 | AtomS3R button | Microphone hold (`ACT10` and `ACT11`) |
 | ByteButton 0 through 5 | `AG00` through `AG05` press and release |
 | ByteButton LEDs 0 through 5 | Agent color and brightness from `onAgentStatus`; non-black/non-white colors receive a 25% brightness boost |
+| M5Chain Buzzer | Plays E6 followed by C7 after one or more ByteButton agent LEDs successfully change to a non-black color; changes to black stay silent |
 | ByteButton 6 and 7 | `ACT06` and `ACT07` press and release; LED 6 stays green and LED 7 stays red at about 50% brightness |
 | M5Chain JoyStick | Four-direction radial input; right, down, left, and up use angles `0`, `0.25`, `0.5`, and `0.75` |
 | M5Chain JoyStick LED | Ambient color and brightness from `onAmbientStatus` |
