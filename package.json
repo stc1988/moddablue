@@ -37,9 +37,9 @@
 	"author": "Satoshi Tanaka",
 	"license": "MIT",
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.2",
-		"@moddable/typings": "^8.3.0",
+		"@biomejs/biome": "^2.5.14",
+		"@moddable/typings": "^9.5.0",
 		"fontkit": "^2.0.4",
-		"typescript": "^5.9.3"
+		"typescript": "^7.0.2"
 	}
 }
