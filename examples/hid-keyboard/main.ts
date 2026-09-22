@@ -106,7 +106,14 @@ class KeyboardAppBehavior extends Behavior {
 		}
 		const sent = this.data.server.notifyCharacter(key);
 		feedback.state = sent ? 1 : 2;
-		feedback.string = sent ? `Sent: ${keyName(key)}` : "Pair with a host before typing";
+		feedback.string = sent ? `Queued: ${keyName(key)}` : "Pair with a host before typing";
+	}
+
+	onBLENotifyError(_application: MC.Application, _error: Error) {
+		const feedback = this.data.FEEDBACK;
+		if (!feedback) return;
+		feedback.state = 2;
+		feedback.string = "Send failed - check connection";
 	}
 
 	onBLEStateChanged(_application: MC.Application, state: ConnectionState) {
@@ -252,6 +259,7 @@ export default function () {
 	};
 	server.onNotifyError = (error) => {
 		trace(`[hid-keyboard] notify failed: ${error.message}\n`);
+		app.distribute("onBLENotifyError", error);
 	};
 	server.onPasskeyRequested = () => {
 		app.distribute("onPasskeyRequested");

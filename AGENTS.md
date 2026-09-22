@@ -31,7 +31,7 @@ Read documentation when the task enters the area it covers:
 
 - AMS protocol, GATT, or pairing work: `modules/ams/README.md` and `modules/ams/AGENTS.md`
 - ANCS protocol, notification, or pairing work: `modules/ancs/README.md` and `modules/ancs/AGENTS.md`
-- HID keyboard work: `modules/hid-keyboard/README.md` and `modules/hid-keyboard/AGENTS.md`
+- HID keyboard work: `modules/hid-keyboard/README.md`
 - HID media-control work: `modules/hid-media-control/README.md` and `modules/hid-media-control/AGENTS.md`
 - Codex controller work and application API: `modules/codex-controller/README.md`; wire protocol work:
   `modules/codex-controller/PROTOCOL.md`
