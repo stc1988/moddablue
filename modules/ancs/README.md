@@ -16,13 +16,14 @@ Include the high-level service from the application's `manifest.json`:
 The manifest exposes a high-level service API:
 
 ```js
-import ANCSService from "moddablue/ancs/service";
+import ANCSService from "moddablue/ancs";
 
 const service = new ANCSService(delegate, { deviceName: "My Device" });
 service.start();
 ```
 
-Low-level APIs are also available as `moddablue/ancs/client` and `moddablue/ancs/pairing-server`. See
+The previous `moddablue/ancs/service` import remains available as a compatibility alias. Low-level APIs are available as
+`moddablue/ancs/client` and `moddablue/ancs/pairing-server`. See
 [`examples/ancs-notifications/main.ts`](../../examples/ancs-notifications/main.ts) for delegate callbacks and notification
 action examples.
 

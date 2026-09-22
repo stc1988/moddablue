@@ -13,17 +13,19 @@ server is added only for ESP32 targets.
 ```
 
 ```ts
-import HIDCodexControllerServer from "moddablue/codex-controller/server";
+import HIDCodexControllerServer from "moddablue/codex-controller";
 import type { ActionKey, AgentKey, CodexControllerService, RadialPosition } from "moddablue/codex-controller/service";
 import { HID_KEY, LIGHTING_EFFECT } from "moddablue/codex-controller/service";
 ```
 
-The previous `moddablue/hid/codex-controller-service` and `moddablue/hid/codex-controller-server` imports remain
-available as compatibility aliases.
+The previous `moddablue/codex-controller/server` and `moddablue/hid/codex-controller-server` imports remain available as
+compatibility aliases. The separate `moddablue/codex-controller/service` contract remains canonical for simulator mocks
+and other consumers that must not load the ESP32-only BLE server. Its previous
+`moddablue/hid/codex-controller-service` alias also remains available.
 
 ## Application API
 
-Applications use the public TypeScript API exported by `moddablue/codex-controller/server` instead of constructing
+Applications use the public TypeScript API exported by `moddablue/codex-controller` instead of constructing
 Vendor Report frames or parsing JSON messages directly. See [Protocol](./PROTOCOL.md) for the wire format.
 
 The UI-independent `CodexControllerService` interface, event and state types, `HID_KEY`, and `LIGHTING_EFFECT` are also
@@ -33,7 +35,7 @@ simulator mocks and other host-independent consumers can share the same contract
 ### Create the server
 
 ```ts
-import HIDCodexControllerServer from "moddablue/codex-controller/server";
+import HIDCodexControllerServer from "moddablue/codex-controller";
 
 const server = new HIDCodexControllerServer({
 	deviceName: "Vibe Watch #1",
@@ -250,7 +252,7 @@ server.close();
 
 - Keep the UI-independent application contract and protocol value types in `CodexControllerService.ts`.
 - Keep ECMA-419 BLE transport, HID framing, and JSON-RPC conversion in `HIDCodexControllerServer.ts`.
-- Keep the public imports `moddablue/codex-controller/service` and `moddablue/codex-controller/server` stable.
+- Keep the public imports `moddablue/codex-controller` and `moddablue/codex-controller/service` stable.
 - Keep UI and provider adapters in `examples/codex-controller/`.
 
 ## Codex Micro controls

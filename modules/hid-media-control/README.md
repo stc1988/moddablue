@@ -12,9 +12,10 @@ Include `manifest.json` and import the stable public module:
 ```
 
 ```ts
-import HIDMediaControlServer from "moddablue/hid-media-control/server";
+import HIDMediaControlServer from "moddablue/hid-media-control";
 ```
 
-The previous `moddablue/hid/media-control-server` import remains available as a compatibility alias.
+The previous `moddablue/hid-media-control/server` and `moddablue/hid/media-control-server` imports remain available as
+compatibility aliases.
 
 See [`examples/hid-media-control`](../../examples/hid-media-control/) for usage.

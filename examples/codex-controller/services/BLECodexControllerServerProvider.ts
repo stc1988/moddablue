@@ -1,1 +1,1 @@
-export { default } from "moddablue/codex-controller/server";
+export { default } from "moddablue/codex-controller";

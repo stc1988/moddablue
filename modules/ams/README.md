@@ -16,15 +16,18 @@ Include only the APIs the application uses:
 }
 ```
 
-`manifest-client.json` exposes `moddablue/ams/client`; `manifest-pairing-server.json` exposes
+`manifest-client.json` exposes `moddablue/ams`; `manifest-pairing-server.json` exposes
 `moddablue/ams/pairing-server`. The aggregate `manifest.json` includes both for compatibility.
 
 The manifest exposes these module imports:
 
 ```js
-import { AMSClient, RemoteCommandID } from "moddablue/ams/client";
+import { AMSClient, RemoteCommandID } from "moddablue/ams";
 import AMSPairingServer from "moddablue/ams/pairing-server";
 ```
+
+The previous `moddablue/ams/client` import remains available as a compatibility alias. The pairing server keeps its
+role suffix because applications select it separately from the client.
 
 See [`examples/ams-media-player/services/AMSMusicPlayerService.ts`](../../examples/ams-media-player/services/AMSMusicPlayerService.ts)
 for a working example of the `AMSClient` delegate callbacks and state format.

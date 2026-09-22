@@ -2,7 +2,7 @@ import type { NotificationAction, NotificationInput } from "NotificationModel";
 import { ConnectionState } from "NotificationModel";
 import NotificationService from "NotificationService";
 import config from "mc/config";
-import ANCSService from "moddablue/ancs/service";
+import ANCSService from "moddablue/ancs";
 import Timer from "timer";
 
 class ANCSNotificationService extends NotificationService {

@@ -16,7 +16,7 @@ These instructions apply only to `modules/ams/`.
 - Keep Entity Attribute available for write-then-read follow-up requests; never add it to the subscription sequence.
 - A GAP Device Name read failure must be logged but must not fail the AMS connection.
 - Request a larger GATT MTU before security and service discovery.
-- Preserve the public imports `moddablue/ams/client` and `moddablue/ams/pairing-server`.
+- Preserve the public imports `moddablue/ams` and `moddablue/ams/pairing-server`.
 
 ## Reference Implementations
 

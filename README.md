@@ -10,11 +10,11 @@ with iPhone.
 
 | Module | Import | Description |
 | --- | --- | --- |
-| [`ams`](modules/ams/) | `moddablue/ams/*` | AMS GATT client and peripheral server for pairing |
-| [`ancs`](modules/ancs/) | `moddablue/ancs/*` | ANCS connection, notification retrieval, and notification actions |
-| [`hid-keyboard`](modules/hid-keyboard/) | `moddablue/hid-keyboard/server` | BLE HID keyboard peripheral |
-| [`hid-media-control`](modules/hid-media-control/) | `moddablue/hid-media-control/server` | BLE Consumer Control peripheral |
-| [`codex-controller`](modules/codex-controller/) | `moddablue/codex-controller/*` | Codex controller contract and BLE HID peripheral |
+| [`ams`](modules/ams/) | `moddablue/ams` | AMS GATT client and peripheral server for pairing |
+| [`ancs`](modules/ancs/) | `moddablue/ancs` | ANCS connection, notification retrieval, and notification actions |
+| [`hid-keyboard`](modules/hid-keyboard/) | `moddablue/hid-keyboard` | BLE HID keyboard peripheral |
+| [`hid-media-control`](modules/hid-media-control/) | `moddablue/hid-media-control` | BLE Consumer Control peripheral |
+| [`codex-controller`](modules/codex-controller/) | `moddablue/codex-controller` | Codex controller contract and BLE HID peripheral |
 
 Each module has its own folder, README, and `manifest.json`, matching the corresponding example name. See each module
 README for its public imports and include example.

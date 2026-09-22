@@ -1,6 +1,7 @@
 {
 	"include": ["$(MODDABLE)/modules/io/ble/client/manifest.json", "$(MODDABLE)/modules/data/text/decoder/manifest.json"],
 	"modules": {
+		"moddablue/ams": "./AMSClient",
 		"moddablue/ams/client": "./AMSClient"
 	}
 }

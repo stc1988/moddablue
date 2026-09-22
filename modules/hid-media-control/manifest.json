@@ -1,6 +1,7 @@
 {
 	"include": ["$(MODDABLE)/modules/io/ble/server/manifest.json"],
 	"modules": {
+		"moddablue/hid-media-control": "./HIDMediaControlServer",
 		"moddablue/hid-media-control/server": "./HIDMediaControlServer",
 		"moddablue/hid/media-control-server": "./HIDMediaControlServer"
 	}

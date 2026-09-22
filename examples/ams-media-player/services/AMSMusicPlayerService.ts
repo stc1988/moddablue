@@ -1,7 +1,7 @@
 import { log } from "Logger";
 import MusicPlayerService from "MusicPlayerService";
-import type { AMSState } from "moddablue/ams/client";
-import { AMSClient, RemoteCommandID } from "moddablue/ams/client";
+import type { AMSState } from "moddablue/ams";
+import { AMSClient, RemoteCommandID } from "moddablue/ams";
 import AMSPairingServer from "moddablue/ams/pairing-server";
 import type { ModelUpdate, PlaybackStateValue, TrackUpdate } from "model";
 import { ConnectionState, createEmptyTrack, PlaybackState } from "model";

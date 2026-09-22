@@ -12,7 +12,7 @@ These instructions apply only to `examples/ancs-notifications/`.
 - Treat `NotificationService.ts` as the common notification-service contract.
 - Use `MockNotificationService` for simulator builds and `ANCSNotificationService` only for ESP32 builds.
 - Do not include the ANCS module in the simulator platform path.
-- Import the ANCS module through `moddablue/ancs/service`; do not compile module source files directly in this manifest.
+- Import the ANCS module through `moddablue/ancs`; do not compile module source files directly in this manifest.
 - Keep unsupported platforms rejected explicitly in `manifest.json`.
 
 ## Safety

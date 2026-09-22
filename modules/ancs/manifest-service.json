@@ -1,6 +1,7 @@
 {
 	"include": ["./manifest-client.json", "./manifest-pairing-server.json"],
 	"modules": {
+		"moddablue/ancs": "./ANCSService",
 		"moddablue/ancs/service": "./ANCSService"
 	}
 }

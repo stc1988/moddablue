@@ -12,7 +12,7 @@ import M5ChainJoyStick, { type JoystickValue, KEY_MODE } from "m5chainJoyStick";
 import { Outline } from "commodetto/outline";
 import type { RegisteredM5ChainDevice } from "m5chain";
 import M5Chain from "m5chain";
-import HIDCodexControllerServer from "moddablue/codex-controller/server";
+import HIDCodexControllerServer from "moddablue/codex-controller";
 import type {
 	AgentStatus,
 	AmbientStatus,

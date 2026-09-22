@@ -15,5 +15,5 @@ These instructions apply only to `modules/ancs/`.
 - The default example build must never perform an action automatically.
 - Preserve cached app display names across client reconnects.
 - Keep the peripheral alive while transitioning to the central; closing it can shut down the shared NimBLE host.
-- Preserve the public imports `moddablue/ancs/service`, `moddablue/ancs/client`, and
+- Preserve the public imports `moddablue/ancs`, `moddablue/ancs/client`, and
   `moddablue/ancs/pairing-server`.

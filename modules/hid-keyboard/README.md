@@ -19,17 +19,18 @@ The include path is resolved relative to the application manifest. For example,
 `../../modules/hid-keyboard/manifest.json` from its directory.
 
 ```ts
-import HIDKeyboardServer from "moddablue/hid-keyboard/server";
+import HIDKeyboardServer from "moddablue/hid-keyboard";
 ```
 
-The previous `moddablue/hid/keyboard-server` import remains available as a compatibility alias.
+The previous `moddablue/hid-keyboard/server` and `moddablue/hid/keyboard-server` imports remain available as
+compatibility aliases.
 
 See [`examples/hid-keyboard`](../../examples/hid-keyboard/) for a complete application.
 
 ## Quick start
 
 ```ts
-import HIDKeyboardServer from "moddablue/hid-keyboard/server";
+import HIDKeyboardServer from "moddablue/hid-keyboard";
 
 const keyboard = new HIDKeyboardServer({
 	deviceName: "My Keyboard",
@@ -92,7 +93,7 @@ that should not depend on text layout.
 Use the exported `KEY_CODE` and `MODIFIER` constants instead of numeric literals:
 
 ```ts
-import HIDKeyboardServer, { KEY_CODE, MODIFIER } from "moddablue/hid-keyboard/server";
+import HIDKeyboardServer, { KEY_CODE, MODIFIER } from "moddablue/hid-keyboard";
 
 keyboard.notifyKeyCode(KEY_CODE.C, MODIFIER.LEFT_CONTROL);
 ```

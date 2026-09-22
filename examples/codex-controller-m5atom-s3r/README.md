@@ -5,7 +5,7 @@ five-pixel BLE status frame. The AtomS3R button controls push-to-talk, an M5Stac
 keys and two action keys, and M5Chain JoyStick and Encoder devices provide navigation and encoder input.
 An M5Chain Buzzer plays a two-note notification when a ByteButton agent LED changes to a non-black color.
 
-The application reuses the `moddablue/codex-controller/server` BLE HID implementation. It includes the ByteButton and
+The application reuses the `moddablue/codex-controller` BLE HID implementation. It includes the ByteButton and
 M5Chain drivers directly from their Git repositories, following their `main` branches.
 
 ## Hardware
